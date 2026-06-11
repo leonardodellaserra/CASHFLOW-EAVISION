@@ -1,0 +1,4436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cashflow · Calendar and Balances</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:#021F3E;color:#E6F1FB;
+  padding:1.5rem 2rem;
+  min-height:100vh;
+}
+
+/* === TOPBAR === */
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;}
+.topbar h1{font-size:18px;font-weight:500;color:#fff;}
+.topbar p{font-size:12px;color:#85B7EB;margin-top:2px;}
+
+/* === TABS === */
+.tabs{
+  display:flex;gap:4px;background:rgba(4,44,83,0.5);padding:5px;border-radius:10px;
+  border:1px solid #185FA5;width:fit-content;margin-bottom:1.5rem;
+}
+.tab{
+  background:transparent;border:none;color:#85B7EB;
+  padding:8px 18px;font-size:13px;font-weight:500;
+  border-radius:7px;cursor:pointer;transition:all .18s ease;
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:inherit;
+}
+.tab:hover{color:#fff;}
+.tab.active{
+  background:linear-gradient(180deg,#2774C4 0%,#185FA5 100%);
+  color:#fff;
+  box-shadow:0 1px 0 rgba(255,255,255,0.08) inset, 0 2px 6px rgba(0,0,0,0.25);
+}
+
+/* === CARDS === */
+.card{
+  background:linear-gradient(135deg,rgba(12,68,124,0.5) 0%,rgba(4,44,83,0.5) 100%);
+  border:1px solid #185FA5;
+  border-radius:12px;padding:18px;margin-bottom:14px;
+}
+.card-hd{
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:13px;color:#fff;font-weight:600;margin-bottom:14px;
+  letter-spacing:-0.01em;
+}
+.sec-lbl{font-size:10px;font-weight:500;color:#378ADD;text-transform:uppercase;letter-spacing:.07em;margin:16px 0 8px;}
+
+/* === FORM === */
+.form-grid{
+  display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr auto;
+  gap:10px;align-items:end;
+}
+.form-grid.with-cat{
+  grid-template-columns:140px 1.3fr 1.1fr 1fr 1fr 1fr auto;
+}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field label{font-size:10px;color:#85B7EB;text-transform:uppercase;letter-spacing:.06em;font-weight:500;}
+.inp,.sel,.txt{
+  background:rgba(4,44,83,0.6);
+  border:1px solid #185FA5;
+  border-radius:7px;
+  padding:8px 10px;
+  color:#fff;font-size:12px;
+  outline:none;font-family:inherit;
+  transition:border-color .15s ease;
+}
+.inp:focus,.sel:focus,.txt:focus{border-color:#378ADD;}
+.txt{min-height:60px;resize:vertical;}
+
+/* === BUTTONS === */
+.btn-pri{
+  background:linear-gradient(180deg,#2774C4 0%,#185FA5 100%);
+  border:1px solid #378ADD;border-radius:8px;
+  padding:8px 18px;font-size:12px;color:#fff;cursor:pointer;
+  font-weight:500;display:inline-flex;align-items:center;gap:6px;
+  font-family:inherit;
+  box-shadow:0 1px 0 rgba(255,255,255,0.08) inset, 0 2px 6px rgba(0,0,0,0.25);
+  transition:all .18s cubic-bezier(.4,0,.2,1);
+}
+.btn-pri:hover{
+  background:linear-gradient(180deg,#378ADD 0%,#2774C4 100%);
+  transform:translateY(-1px);
+  box-shadow:0 1px 0 rgba(255,255,255,0.12) inset, 0 4px 12px rgba(55,138,221,0.35);
+}
+.btn-pri.out{
+  background:linear-gradient(180deg,#C13434 0%,#8E2525 100%);
+  border-color:#E24B4A;
+}
+.btn-pri.out:hover{
+  background:linear-gradient(180deg,#D14545 0%,#A02D2D 100%);
+  box-shadow:0 1px 0 rgba(255,255,255,0.12) inset, 0 4px 12px rgba(193,52,52,0.35);
+}
+.btn-ghost{
+  background:transparent;border:1px solid rgba(55,138,221,0.4);
+  border-radius:6px;padding:6px 12px;font-size:11px;color:#85B7EB;
+  cursor:pointer;font-weight:500;font-family:inherit;
+  display:inline-flex;align-items:center;gap:5px;
+  transition:all .15s ease;
+}
+.btn-ghost:hover{background:rgba(55,138,221,0.12);color:#fff;border-color:#378ADD;}
+.btn-del{
+  background:transparent;border:none;color:#F09595;
+  cursor:pointer;padding:4px 8px;font-size:14px;
+  border-radius:4px;transition:background .15s ease;
+}
+.btn-del:hover{background:rgba(240,149,149,0.15);}
+
+/* === CERTAINTY PILLS === */
+.cert{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:10px;padding:2px 8px;border-radius:99px;
+  font-weight:600;text-transform:uppercase;letter-spacing:.04em;
+  border:1px solid;
+}
+.cert.high{background:rgba(93,202,165,0.15);color:#5DCAA5;border-color:rgba(93,202,165,0.4);}
+.cert.med{background:rgba(250,199,117,0.15);color:#FAC775;border-color:rgba(250,199,117,0.4);}
+.cert.low{background:rgba(240,149,149,0.15);color:#F09595;border-color:rgba(240,149,149,0.4);}
+
+/* === CALENDAR HEADER === */
+.cal-controls{display:flex;align-items:center;gap:14px;}
+.month-nav{display:flex;align-items:center;gap:8px;}
+.month-btn{
+  background:rgba(4,44,83,0.6);border:1px solid #185FA5;
+  border-radius:7px;width:32px;height:32px;
+  color:#85B7EB;cursor:pointer;font-size:14px;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:all .15s ease;
+}
+.month-btn:hover{background:#0C447C;color:#fff;border-color:#378ADD;}
+.month-title{font-size:14px;color:#fff;font-weight:600;min-width:130px;text-align:center;letter-spacing:-0.01em;}
+
+.cal-summary{
+  display:flex;gap:10px;
+}
+.sum-pill{
+  background:rgba(4,44,83,0.6);
+  border:1px solid #185FA5;border-radius:8px;
+  padding:6px 12px;font-size:11px;
+  display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:100px;
+}
+.sum-pill .sum-lbl{font-size:9px;color:#85B7EB;text-transform:uppercase;letter-spacing:.05em;font-weight:500;}
+.sum-pill .sum-val{font-size:13px;color:#fff;font-weight:600;}
+.sum-pill.in{border-color:rgba(93,202,165,0.4);}
+.sum-pill.in .sum-val{color:#5DCAA5;}
+.sum-pill.out{border-color:rgba(240,149,149,0.4);}
+.sum-pill.out .sum-val{color:#F09595;}
+.sum-pill.net{border-color:rgba(55,138,221,0.5);}
+
+/* === CALENDAR GRID === */
+.cal{
+  display:grid;grid-template-columns:repeat(7,1fr);
+  gap:6px;
+}
+.cal-head{
+  font-size:10px;color:#85B7EB;text-transform:uppercase;letter-spacing:.08em;
+  font-weight:500;text-align:center;padding:6px 0;
+}
+.day{
+  background:rgba(4,44,83,0.4);
+  border:1px solid rgba(24,95,165,0.3);
+  border-radius:8px;
+  min-height:110px;padding:8px;
+  display:flex;flex-direction:column;gap:4px;
+  cursor:pointer;transition:all .15s ease;
+  position:relative;
+}
+.day:hover{border-color:#378ADD;background:rgba(4,44,83,0.7);}
+.day.outside{opacity:0.25;cursor:default;}
+.day.outside:hover{border-color:rgba(24,95,165,0.3);background:rgba(4,44,83,0.4);}
+.day.today{
+  border:2px solid #5DCAA5;
+  background:linear-gradient(135deg,rgba(93,202,165,0.15) 0%,rgba(4,44,83,0.6) 100%);
+  box-shadow:0 0 0 1px rgba(93,202,165,0.25), 0 4px 14px rgba(93,202,165,0.2);
+}
+.day.today::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,#5DCAA5,#378ADD,#5DCAA5);border-radius:6px 6px 0 0;
+}
+.day-num{font-size:12px;color:#B5D4F4;font-weight:600;margin-bottom:2px;display:flex;align-items:center;justify-content:space-between;gap:6px;}
+.day.today .day-num{color:#5DCAA5;font-weight:700;}
+.today-badge{
+  font-size:8px;font-weight:700;color:#021F3E;
+  background:linear-gradient(135deg,#5DCAA5 0%,#378ADD 100%);
+  padding:2px 6px;border-radius:99px;
+  letter-spacing:.08em;
+  box-shadow:0 1px 4px rgba(93,202,165,0.5);
+  animation:pulse-today 2.5s ease-in-out infinite;
+}
+@keyframes pulse-today{
+  0%,100%{transform:scale(1);box-shadow:0 1px 4px rgba(93,202,165,0.5);}
+  50%{transform:scale(1.06);box-shadow:0 2px 8px rgba(93,202,165,0.7);}
+}
+.day-saldo{font-size:9px;color:#85B7EB;margin-top:auto;padding-top:4px;border-top:0.5px solid rgba(24,95,165,0.3);}
+.day-saldo.pos{color:#5DCAA5;}
+.day-saldo.neg{color:#F09595;}
+
+.entry-tag{
+  font-size:9px;padding:2px 5px;border-radius:4px;
+  display:flex;justify-content:space-between;align-items:center;gap:3px;
+  line-height:1.2;white-space:nowrap;overflow:hidden;
+  border-left:2px solid;
+}
+.entry-tag.in{background:rgba(93,202,165,0.12);border-color:#5DCAA5;color:#A6E0C7;}
+.entry-tag.out{background:rgba(240,149,149,0.12);border-color:#F09595;color:#F5BABA;}
+.entry-tag .e-name{flex:1;overflow:hidden;text-overflow:ellipsis;font-weight:500;}
+.entry-tag .e-val{font-weight:600;flex-shrink:0;}
+
+/* === ENTRIES TABLE === */
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th{
+  text-align:left;font-size:10px;color:#85B7EB;font-weight:500;
+  text-transform:uppercase;letter-spacing:.05em;
+  padding:8px 10px;border-bottom:1px solid #185FA5;
+}
+.tbl td{
+  padding:10px;font-size:12px;color:#E6F1FB;
+  border-bottom:0.5px solid rgba(24,95,165,0.3);
+}
+.tbl tr:hover td{background:rgba(24,95,165,0.08);}
+.tbl .col-val{text-align:right;font-weight:600;}
+.tbl .col-val.in{color:#5DCAA5;}
+.tbl .col-val.out{color:#F09595;}
+
+/* === BALANCES (saldos por banco) === */
+.bal-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;
+}
+.bal-card{
+  background:linear-gradient(135deg,rgba(12,68,124,0.7) 0%,rgba(4,44,83,0.5) 100%);
+  border:1px solid #185FA5;border-radius:10px;padding:14px;
+  position:relative;overflow:hidden;
+}
+.bal-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,#378ADD,transparent);
+}
+.bal-name{font-size:10px;color:#85B7EB;text-transform:uppercase;letter-spacing:.08em;font-weight:500;margin-bottom:6px;}
+.bal-val{font-size:20px;font-weight:600;color:#fff;letter-spacing:-0.02em;line-height:1.1;}
+.bal-pct{font-size:11px;color:#85B7EB;margin-top:4px;}
+.bal-edit{
+  position:absolute;top:10px;right:10px;
+  background:transparent;border:none;color:#378ADD;cursor:pointer;
+  font-size:12px;opacity:0.6;transition:opacity .15s ease;
+}
+.bal-card:hover .bal-edit{opacity:1;}
+
+/* === SALDO CONSOLIDADO HERO === */
+.cons-card{
+  background:linear-gradient(135deg,rgba(55,138,221,0.18) 0%,rgba(93,202,165,0.10) 50%,rgba(4,44,83,0.6) 100%);
+  border:1px solid rgba(55,138,221,0.4);
+  border-radius:14px;padding:22px;
+  margin-bottom:14px;position:relative;overflow:hidden;
+}
+.cons-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,#378ADD,#5DCAA5,#378ADD);opacity:0.7;
+}
+.cons-lbl{font-size:11px;color:#85B7EB;text-transform:uppercase;letter-spacing:.1em;font-weight:500;margin-bottom:6px;}
+.cons-val{font-size:42px;font-weight:600;color:#fff;letter-spacing:-0.03em;line-height:1.1;}
+.cons-sub{font-size:12px;color:#B5D4F4;margin-top:6px;display:flex;gap:14px;flex-wrap:wrap;}
+.cons-trend{display:inline-flex;align-items:center;gap:4px;font-weight:500;}
+.cons-trend.up{color:#5DCAA5;}
+.cons-trend.dn{color:#F09595;}
+
+/* === SALDO DIÁRIO (linha do tempo) === */
+.daily-grid{
+  display:grid;grid-template-columns:repeat(7,1fr);gap:6px;
+}
+.daily-cell{
+  background:rgba(4,44,83,0.4);
+  border:1px solid rgba(24,95,165,0.3);
+  border-radius:8px;padding:10px;
+  display:flex;flex-direction:column;gap:3px;
+  position:relative;
+  cursor:pointer;transition:all .15s ease;
+}
+.daily-cell:hover{border-color:#378ADD;}
+.daily-cell.reconciled{
+  border-color:rgba(93,202,165,0.5);
+  background:linear-gradient(135deg,rgba(93,202,165,0.06) 0%,rgba(4,44,83,0.4) 100%);
+}
+.daily-cell.reconciled::after{
+  content:'✓';position:absolute;top:6px;right:8px;
+  font-size:11px;color:#5DCAA5;font-weight:700;
+}
+.daily-cell.today{border-color:#5DCAA5;}
+.daily-date{font-size:10px;color:#85B7EB;font-weight:500;}
+.daily-saldo{font-size:13px;color:#fff;font-weight:600;margin-top:2px;}
+.daily-saldo.pos{color:#fff;}
+.daily-saldo.neg{color:#F09595;}
+.daily-delta{font-size:10px;color:#85B7EB;}
+.daily-delta.up{color:#5DCAA5;}
+.daily-delta.dn{color:#F09595;}
+
+/* === OVERLAY === */
+.overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(2,15,30,0.75);backdrop-filter:blur(4px);
+  z-index:100;align-items:center;justify-content:center;
+}
+.overlay.show{display:flex;}
+.modal{
+  background:linear-gradient(135deg,#0C447C 0%,#042C53 100%);
+  border:1px solid #185FA5;border-radius:14px;
+  padding:24px;width:90%;max-width:520px;
+  box-shadow:0 12px 40px rgba(0,0,0,0.5);
+}
+.modal-hd{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:18px;font-size:15px;color:#fff;font-weight:600;
+}
+.modal-close{
+  background:transparent;border:none;color:#85B7EB;cursor:pointer;
+  font-size:18px;padding:4px 8px;border-radius:4px;
+  transition:all .15s ease;
+}
+.modal-close:hover{color:#fff;background:rgba(24,95,165,0.3);}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;}
+
+/* === RESPONSIVE === */
+@media (max-width:1100px){
+  .bal-grid{grid-template-columns:repeat(2,1fr);}
+  .form-grid,.form-grid.with-cat{grid-template-columns:1fr 1fr;}
+}
+@media (max-width:700px){
+  .cal{font-size:10px;}
+  .day{min-height:80px;}
+  .bal-grid{grid-template-columns:1fr;}
+  .daily-grid{grid-template-columns:repeat(3,1fr);}
+}
+
+/* === 6-MONTH PROJECTION === */
+.proj-month-card{
+  background:linear-gradient(135deg,rgba(12,68,124,0.7) 0%,rgba(4,44,83,0.5) 100%);
+  border:1px solid #185FA5;border-radius:10px;padding:12px 10px;
+  position:relative;overflow:hidden;text-align:center;
+}
+.proj-month-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,#378ADD,transparent);
+}
+.proj-month-card.critical{
+  border-color:rgba(240,149,149,0.5);
+  background:linear-gradient(135deg,rgba(240,149,149,0.12) 0%,rgba(4,44,83,0.5) 100%);
+}
+.proj-month-card.critical::before{
+  background:linear-gradient(90deg,transparent,#F09595,transparent);
+}
+.proj-month-name{font-size:10px;color:#85B7EB;text-transform:uppercase;letter-spacing:.08em;font-weight:500;margin-bottom:4px;}
+.proj-month-val{font-size:15px;font-weight:600;color:#fff;letter-spacing:-0.02em;}
+.proj-month-net{font-size:10px;margin-top:3px;}
+.proj-month-net.pos{color:#5DCAA5;}
+.proj-month-net.neg{color:#F09595;}
+
+/* Tabela de projeção */
+#projTable th{padding:8px 6px;font-size:9px;}
+#projTable td{padding:6px;font-size:11px;}
+.proj-cat-header td{
+  background:rgba(24,95,165,0.18);
+  font-size:10px;font-weight:600;
+  color:#B5D4F4;text-transform:uppercase;letter-spacing:.06em;
+  padding:8px 10px !important;
+  border-top:1px solid #185FA5;
+}
+.proj-name-input{
+  background:transparent;border:1px solid transparent;
+  color:#E6F1FB;font-size:11px;padding:5px 6px;border-radius:4px;
+  font-family:inherit;width:100%;outline:none;
+  transition:all .15s ease;
+}
+.proj-name-input:hover{border-color:rgba(55,138,221,0.3);background:rgba(4,44,83,0.4);}
+.proj-name-input:focus{border-color:#378ADD;background:rgba(4,44,83,0.6);}
+
+.proj-val-input{
+  background:transparent;border:1px solid transparent;
+  color:#E6F1FB;font-size:11px;padding:5px 6px;border-radius:4px;
+  font-family:inherit;width:100%;outline:none;text-align:right;
+  transition:all .15s ease;
+}
+.proj-val-input:hover{border-color:rgba(55,138,221,0.3);background:rgba(4,44,83,0.4);}
+.proj-val-input:focus{border-color:#378ADD;background:rgba(4,44,83,0.6);}
+.proj-val-input.in{color:#5DCAA5;font-weight:500;}
+.proj-val-input.out{color:#F09595;font-weight:500;}
+.proj-val-input.zero{color:#5D7493;}
+
+.proj-totals-row td{
+  background:rgba(4,44,83,0.8);
+  font-weight:600;font-size:11px;
+  border-top:1px solid #185FA5;
+  padding:10px 6px !important;
+}
+.proj-totals-row .totals-label{color:#85B7EB;text-transform:uppercase;letter-spacing:.06em;font-size:10px;}
+.proj-totals-row.net-row td{
+  background:linear-gradient(90deg,rgba(55,138,221,0.18),rgba(55,138,221,0.05));
+}
+.proj-totals-row.bal-row td{
+  background:linear-gradient(90deg,rgba(93,202,165,0.15),rgba(93,202,165,0.03));
+  font-size:12px;
+}
+
+.proj-cat-pill{
+  display:inline-block;padding:2px 7px;
+  border-radius:99px;font-size:9px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.04em;
+}
+
+.proj-row-del{
+  background:transparent;border:none;color:#F09595;
+  cursor:pointer;padding:4px;font-size:13px;
+  border-radius:4px;transition:background .15s ease;opacity:0.5;
+}
+.proj-row-del:hover{background:rgba(240,149,149,0.15);opacity:1;}
+
+/* Insights */
+.proj-insight{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:11px 12px;
+  border-bottom:0.5px solid rgba(24,95,165,0.3);
+}
+.proj-insight:last-child{border-bottom:none;}
+.proj-insight-ico{
+  width:24px;height:24px;border-radius:6px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;
+}
+.proj-insight.ok .proj-insight-ico{background:rgba(93,202,165,0.15);color:#5DCAA5;border:1px solid rgba(93,202,165,0.3);}
+.proj-insight.warn .proj-insight-ico{background:rgba(250,199,117,0.15);color:#FAC775;border:1px solid rgba(250,199,117,0.3);}
+.proj-insight.bad .proj-insight-ico{background:rgba(240,149,149,0.15);color:#F09595;border:1px solid rgba(240,149,149,0.3);}
+.proj-insight.info .proj-insight-ico{background:rgba(133,183,235,0.15);color:#85B7EB;border:1px solid rgba(133,183,235,0.3);}
+.proj-insight-text{flex:1;font-size:12px;color:#E6F1FB;line-height:1.4;}
+.proj-insight-text strong{color:#fff;font-weight:600;}
+
+@media (max-width:1100px){
+  #projMonthCards{grid-template-columns:repeat(3,1fr) !important;}
+}
+
+/* === GRUPOS COLAPSÁVEIS NO MODAL DO DIA === */
+.cat-group-row td{
+  padding:10px 10px !important;
+  background:rgba(24,95,165,0.12);
+  border-top:1px solid rgba(24,95,165,0.3);
+  transition:background .15s ease;
+}
+.cat-group-row:hover td{
+  background:rgba(24,95,165,0.22);
+}
+.cat-item-row td{
+  padding:8px 10px !important;
+  font-size:11px;
+}
+
+/* === HIDE/SHOW TAB CONTENT === */
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN OVERLAY ===== -->
+<div id="loginOverlay" style="
+  position:fixed;inset:0;z-index:9999;
+  background:linear-gradient(135deg,#021F3E 0%,#042C53 100%);
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;
+">
+  <div style="
+    background:linear-gradient(135deg,rgba(12,68,124,0.8) 0%,rgba(4,44,83,0.9) 100%);
+    border:1px solid #185FA5;
+    border-radius:16px;
+    padding:36px 32px;
+    width:100%;max-width:380px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.4);
+    position:relative;overflow:hidden;
+  ">
+    <div style="
+      position:absolute;top:0;left:0;right:0;height:3px;
+      background:linear-gradient(90deg,#378ADD,#5DCAA5,#378ADD);
+    "></div>
+
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="
+        width:56px;height:56px;border-radius:14px;
+        background:linear-gradient(135deg,rgba(55,138,221,0.2) 0%,rgba(93,202,165,0.15) 100%);
+        border:1px solid rgba(55,138,221,0.4);
+        margin:0 auto 16px;
+        display:flex;align-items:center;justify-content:center;
+      ">
+        <i class="ti ti-lock" style="font-size:28px;color:#5DCAA5;"></i>
+      </div>
+      <h2 style="font-size:18px;color:#fff;font-weight:600;letter-spacing:-0.01em;">Cashflow Dashboard</h2>
+      <p style="font-size:12px;color:#85B7EB;margin-top:6px;">Restricted access · enter password to continue</p>
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <label style="font-size:10px;color:#85B7EB;text-transform:uppercase;letter-spacing:.06em;font-weight:500;display:block;margin-bottom:6px;">Password</label>
+      <input id="loginPwd" type="password" placeholder="Enter password" style="
+        width:100%;
+        background:rgba(4,44,83,0.6);
+        border:1px solid #185FA5;
+        border-radius:8px;
+        padding:10px 12px;
+        color:#fff;font-size:13px;
+        outline:none;font-family:inherit;
+        transition:border-color .15s ease;
+      " onkeydown="if(event.key==='Enter')tryLogin()" autofocus>
+    </div>
+
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#B5D4F4;cursor:pointer;margin-bottom:18px;user-select:none;">
+      <input type="checkbox" id="rememberMe" style="accent-color:#5DCAA5;width:14px;height:14px;cursor:pointer;">
+      <span>Remember me on this device</span>
+    </label>
+
+    <button onclick="tryLogin()" style="
+      width:100%;
+      background:linear-gradient(180deg,#2774C4 0%,#185FA5 100%);
+      border:1px solid #378ADD;border-radius:8px;
+      padding:12px;font-size:13px;color:#fff;cursor:pointer;
+      font-weight:600;letter-spacing:.02em;
+      font-family:inherit;
+      box-shadow:0 1px 0 rgba(255,255,255,0.08) inset, 0 2px 6px rgba(0,0,0,0.25);
+      transition:all .18s ease;
+      display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    " onmouseover="this.style.transform='translateY(-1px)';this.style.background='linear-gradient(180deg,#378ADD 0%,#2774C4 100%)';"
+       onmouseout="this.style.transform='translateY(0)';this.style.background='linear-gradient(180deg,#2774C4 0%,#185FA5 100%)';">
+      <i class="ti ti-login"></i> Sign in
+    </button>
+
+    <div id="loginError" style="
+      margin-top:14px;padding:10px 12px;
+      background:rgba(240,149,149,0.12);
+      border:1px solid rgba(240,149,149,0.3);
+      border-radius:8px;
+      font-size:12px;color:#F5BABA;
+      display:none;
+    ">
+      <i class="ti ti-alert-circle"></i> Incorrect password. Please try again.
+    </div>
+
+    <div style="margin-top:20px;padding-top:18px;border-top:0.5px solid rgba(24,95,165,0.4);font-size:10px;color:#85B7EB;text-align:center;letter-spacing:.02em;">
+      EAVISION · Confidential financial data
+    </div>
+  </div>
+</div>
+
+<script>
+// === Simple password protection (Level 1) ===
+// Note: this prevents casual access only. The password is visible in the source code.
+// For sensitive data with stronger protection, request encryption upgrade.
+const APP_PASSWORD = 'cashflowglobal';
+const STORAGE_KEY = 'cashflow_auth_v1';
+
+function tryLogin(){
+  const input = document.getElementById('loginPwd').value;
+  const remember = document.getElementById('rememberMe').checked;
+  const errorEl = document.getElementById('loginError');
+
+  if (input === APP_PASSWORD) {
+    if (remember) {
+      try { localStorage.setItem(STORAGE_KEY, '1'); } catch(e){}
+    }
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.body.style.overflow = '';
+  } else {
+    errorEl.style.display = 'block';
+    document.getElementById('loginPwd').value = '';
+    document.getElementById('loginPwd').focus();
+    // Esconde erro depois de 3s
+    setTimeout(() => { errorEl.style.display = 'none'; }, 3000);
+  }
+}
+
+// Verifica se já está autenticado (lembrado anteriormente)
+(function checkAuth(){
+  try {
+    if (localStorage.getItem(STORAGE_KEY) === '1') {
+      document.getElementById('loginOverlay').style.display = 'none';
+      return;
+    }
+  } catch(e){}
+  // Bloqueia scroll enquanto login está visível
+  document.body.style.overflow = 'hidden';
+})();
+
+function logout(){
+  if (!confirm('Sign out and require password again?')) return;
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
+  location.reload();
+}
+</script>
+
+<div class="topbar">
+  <div>
+    <h1>Cashflow</h1>
+    <p>Calendar of cash in and cash out · consolidated and per-bank balances</p>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div style="font-size:12px;color:#85B7EB;" id="todayLabel"></div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm" style="display:none;" onchange="importXlsx(event)">
+    <button class="btn-pri" onclick="document.getElementById('fileInput').click();" title="Import Bradesco .xlsx spreadsheet"><i class="ti ti-file-spreadsheet"></i> Import spreadsheet</button>
+    <button class="btn-ghost" onclick="resetData()" title="Restore original data"><i class="ti ti-refresh"></i> Reset</button>
+    <button class="btn-ghost" onclick="logout()" title="Sign out"><i class="ti ti-logout"></i> Sign out</button>
+  </div>
+</div>
+
+<!-- Feedback de import -->
+<div id="importFeedback" style="display:none;margin-bottom:14px;padding:12px 16px;border-radius:8px;font-size:13px;"></div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('calendar')"><i class="ti ti-calendar"></i> Calendar</button>
+  <button class="tab" onclick="switchTab('balances')"><i class="ti ti-wallet"></i> Balances</button>
+  <button class="tab" onclick="switchTab('daily')"><i class="ti ti-chart-line"></i> Daily balance</button>
+  <button class="tab" onclick="switchTab('projection')"><i class="ti ti-target"></i> 6-month projection</button>
+</div>
+
+<!-- ===== TAB 1: CALENDÁRIO ===== -->
+<div class="tab-content active" id="tab-calendar">
+
+<!-- Saldo Bradesco · resumo no topo do calendário -->
+<div class="bal-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;margin-bottom:14px;">
+  <div class="bal-card">
+    <div class="bal-name">Initial balance · 05/29</div>
+    <div class="bal-val" id="topInitial">R$ 0</div>
+    <div class="bal-pct">Bradesco · starting point</div>
+  </div>
+  <div class="bal-card">
+    <div class="bal-name">Projected current balance</div>
+    <div class="bal-val" id="topCurrent">R$ 0</div>
+    <div class="bal-pct" id="topCurrentSub">—</div>
+  </div>
+  <div class="bal-card">
+    <div class="bal-name">Forecasted final balance · 06/30</div>
+    <div class="bal-val" id="topFinal">R$ 0</div>
+    <div class="bal-pct" id="topFinalSub">Monthly net</div>
+  </div>
+  <div class="bal-card">
+    <div class="bal-name">Monthly net</div>
+    <div class="bal-val" id="topNet">R$ 0</div>
+    <div class="bal-pct" id="topNetSub">Cash in − Cash out</div>
+  </div>
+</div>
+<div class="card">
+  <div class="card-hd">
+    <span>Add transaction</span>
+  </div>
+  <div class="form-grid with-cat">
+    <div class="field">
+      <label>Type</label>
+      <select class="sel" id="fType">
+        <option value="in">Cash in</option>
+        <option value="out">Cash out</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Name / Customer / Supplier</label>
+      <input class="inp" id="fName" placeholder="e.g. Customer X payment">
+    </div>
+    <div class="field">
+      <label>Category</label>
+      <input class="inp" id="fCat" placeholder="e.g. Freight, Payroll, Sales">
+    </div>
+    <div class="field">
+      <label>Amount (R$)</label>
+      <input class="inp" id="fVal" type="number" step="0.01" placeholder="0,00">
+    </div>
+    <div class="field">
+      <label>Expected date</label>
+      <input class="inp" id="fDate" type="date">
+    </div>
+    <div class="field">
+      <label>Certainty</label>
+      <select class="sel" id="fCert">
+        <option value="high">High · Confirmed</option>
+        <option value="med">Med · Likely</option>
+        <option value="low">Low · Estimated</option>
+      </select>
+    </div>
+    <button class="btn-pri" onclick="addEntry()"><i class="ti ti-plus"></i> Add</button>
+  </div>
+  <div class="field" style="margin-top:10px;">
+    <label>Description (optional)</label>
+    <textarea class="txt" id="fDesc" placeholder="Transaction details"></textarea>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hd">
+    <div class="cal-controls">
+      <div class="month-nav">
+        <button class="month-btn" onclick="navMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+        <div class="month-title" id="monthTitle">—</div>
+        <button class="month-btn" onclick="navMonth(1)"><i class="ti ti-chevron-right"></i></button>
+      </div>
+    </div>
+    <div class="cal-summary">
+      <div class="sum-pill in"><span class="sum-lbl">Cash in (month)</span><span class="sum-val" id="sumIn">R$ 0</span></div>
+      <div class="sum-pill out"><span class="sum-lbl">Cash out (month)</span><span class="sum-val" id="sumOut">R$ 0</span></div>
+      <div class="sum-pill net"><span class="sum-lbl">Net (month)</span><span class="sum-val" id="sumNet">R$ 0</span></div>
+    </div>
+  </div>
+
+  <div class="cal" id="calHead">
+    <div class="cal-head">Sun</div>
+    <div class="cal-head">Mon</div>
+    <div class="cal-head">Tue</div>
+    <div class="cal-head">Wed</div>
+    <div class="cal-head">Thu</div>
+    <div class="cal-head">Fri</div>
+    <div class="cal-head">Sat</div>
+  </div>
+  <div class="cal" id="calGrid" style="margin-top:6px;"></div>
+</div>
+
+<!-- Mini-gráfico de evolução do saldo -->
+<div class="card">
+  <div class="card-hd">
+    <span>Balance evolution · day by day</span>
+    <span style="font-size:11px;color:#85B7EB;font-weight:400;" id="balanceChartSub">—</span>
+  </div>
+  <div style="position:relative;height:240px;">
+    <canvas id="balanceChart"></canvas>
+  </div>
+</div>
+
+<!-- Top 5 saídas + Distribuição por categoria lado a lado -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+  <div class="card" style="margin-bottom:0;">
+    <div class="card-hd">
+      <span>Top 5 outflows of the month</span>
+      <span style="font-size:11px;color:#85B7EB;font-weight:400;" id="topOutSub">—</span>
+    </div>
+    <div id="topOutList"></div>
+  </div>
+  <div class="card" style="margin-bottom:0;">
+    <div class="card-hd">
+      <span>Category breakdown</span>
+      <span style="font-size:11px;color:#85B7EB;font-weight:400;">Monthly outflows</span>
+    </div>
+    <div style="display:grid;grid-template-columns:140px 1fr;gap:14px;align-items:center;">
+      <div style="position:relative;height:140px;">
+        <canvas id="catChart"></canvas>
+      </div>
+      <div id="catLegend" style="font-size:11px;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hd">
+    <span>Monthly transactions</span>
+    <span style="font-size:11px;color:#85B7EB;font-weight:400;" id="entryCount">0 lançamentos</span>
+  </div>
+  <table class="tbl">
+    <thead>
+      <tr>
+        <th style="width:80px;">Date</th>
+        <th style="width:50px;">Type</th>
+        <th>Name</th>
+        <th>Category</th>
+        <th style="width:90px;">Certainty</th>
+        <th style="width:120px;" class="col-val">Amount</th>
+        <th style="width:40px;"></th>
+      </tr>
+    </thead>
+    <tbody id="entryTable"></tbody>
+  </table>
+</div>
+
+</div>
+
+<!-- ===== TAB 2: SALDOS (BANCOS) ===== -->
+<div class="tab-content" id="tab-balances">
+
+<div class="cons-card">
+  <div class="cons-lbl">Consolidated balance · all banks</div>
+  <div class="cons-val" id="consTotal">R$ 0</div>
+  <div class="cons-sub">
+    <span>Updated on <span id="consDate">—</span></span>
+    <span class="cons-trend" id="consTrend"></span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hd">
+    <span>Balance per bank</span>
+    <button class="btn-pri" onclick="openModal('bankModal')"><i class="ti ti-plus"></i> Add bank</button>
+  </div>
+  <div class="bal-grid" id="bankGrid"></div>
+</div>
+
+<div class="card">
+  <div class="card-hd">
+    <span>Balance history (last month)</span>
+  </div>
+  <table class="tbl">
+    <thead>
+      <tr>
+        <th style="width:120px;">Data</th>
+        <th>Bank</th>
+        <th class="col-val">Recorded balance</th>
+        <th class="col-val" style="width:120px;">Δ Previous day</th>
+        <th style="width:40px;"></th>
+      </tr>
+    </thead>
+    <tbody id="histTable"></tbody>
+  </table>
+</div>
+
+</div>
+
+<!-- ===== TAB 3: SALDO DIÁRIO (linha do tempo) ===== -->
+<div class="tab-content" id="tab-daily">
+
+<div class="cons-card">
+  <div class="cons-lbl">Projected balance · today</div>
+  <div class="cons-val" id="dailyToday">R$ 0</div>
+  <div class="cons-sub">
+    <span>Initial: <span id="initBalance">R$ 0</span></span>
+    <span>Transactions to date: <span id="netSoFar">R$ 0</span></span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hd">
+    <span>Initial balance</span>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;align-items:end;">
+    <div class="field">
+      <label>Initial balance date (T0)</label>
+      <input class="inp" id="t0Date" type="date">
+    </div>
+    <div class="field">
+      <label>Initial balance amount (R$)</label>
+      <input class="inp" id="t0Val" type="number" step="0.01" placeholder="0,00">
+    </div>
+    <button class="btn-pri" onclick="setInitial()"><i class="ti ti-check"></i> Set</button>
+    <button class="btn-ghost" onclick="syncT0FromBanks()" title="Use bank total as initial balance"><i class="ti ti-refresh"></i> From Balances tab</button>
+  </div>
+  <div style="font-size:11px;color:#85B7EB;margin-top:10px;">
+    Each day's balance is automatically calculated: <strong>previous day's balance + day's transactions</strong>. Click any cell to reconcile with the actual balance.
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hd">
+    <div class="cal-controls">
+      <div class="month-nav">
+        <button class="month-btn" onclick="navDaily(-7)"><i class="ti ti-chevrons-left"></i></button>
+        <button class="month-btn" onclick="navDaily(-1)"><i class="ti ti-chevron-left"></i></button>
+        <div class="month-title" id="dailyTitle" style="min-width:200px;">—</div>
+        <button class="month-btn" onclick="navDaily(1)"><i class="ti ti-chevron-right"></i></button>
+        <button class="month-btn" onclick="navDaily(7)"><i class="ti ti-chevrons-right"></i></button>
+      </div>
+    </div>
+    <button class="btn-ghost" onclick="dailyOffset=0;renderDaily();"><i class="ti ti-calendar-event"></i> Today</button>
+  </div>
+  <div class="daily-grid" id="dailyGrid"></div>
+  <div style="font-size:10px;color:#85B7EB;margin-top:12px;display:flex;gap:14px;flex-wrap:wrap;">
+    <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#5DCAA5;margin-right:4px;"></span>Reconciled (actual balance provided)</span>
+    <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#378ADD;margin-right:4px;"></span>Projected (auto-calculated)</span>
+  </div>
+</div>
+
+</div>
+
+<!-- ===== TAB 4: 6-MONTH PROJECTION ===== -->
+<div class="tab-content" id="tab-projection">
+
+<!-- Top: 6 monthly cards -->
+<div class="sec-lbl" style="font-size:10px;font-weight:500;color:#378ADD;text-transform:uppercase;letter-spacing:.07em;margin:0 0 10px;">Forecasted closing balance · per month</div>
+<div id="projMonthCards" style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:18px;"></div>
+
+<!-- Line chart + bars combined -->
+<div style="display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-bottom:18px;">
+  <div class="card" style="margin-bottom:0;">
+    <div class="card-hd">
+      <span>Balance evolution · 6-month horizon</span>
+      <span style="font-size:11px;color:#85B7EB;font-weight:400;" id="projLineSub">—</span>
+    </div>
+    <div style="position:relative;height:240px;">
+      <canvas id="projLineChart"></canvas>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:0;">
+    <div class="card-hd">
+      <span>Cash in vs cash out</span>
+      <span style="font-size:11px;color:#85B7EB;font-weight:400;">Monthly breakdown</span>
+    </div>
+    <div style="position:relative;height:240px;">
+      <canvas id="projBarChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Editable table -->
+<div class="card">
+  <div class="card-hd">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span>Projection items</span>
+      <span style="font-size:11px;color:#85B7EB;font-weight:400;" id="projTableSub">—</span>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn-ghost" onclick="loadRecurringFromJune()" title="Reload June recurring items"><i class="ti ti-refresh"></i> Reload from June</button>
+      <button class="btn-ghost" onclick="addProjRow('in')" title="Add cash in line"><i class="ti ti-plus"></i> Cash in</button>
+      <button class="btn-pri" onclick="addProjRow('out')"><i class="ti ti-plus"></i> Cash out</button>
+    </div>
+  </div>
+
+  <!-- Initial balance row -->
+  <div style="display:grid;grid-template-columns:280px 1fr;gap:14px;align-items:center;padding:14px;background:linear-gradient(90deg,rgba(55,138,221,0.15),rgba(55,138,221,0.05));border:1px solid rgba(55,138,221,0.4);border-radius:8px;margin-bottom:14px;">
+    <div>
+      <div style="font-size:10px;color:#85B7EB;text-transform:uppercase;letter-spacing:.07em;font-weight:500;">Starting balance · July 1</div>
+      <div style="font-size:11px;color:#B5D4F4;margin-top:3px;">Auto-imported from June final balance</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <input id="projStartBal" type="number" step="0.01" class="inp" style="flex:1;max-width:200px;font-size:14px;font-weight:600;" oninput="projStartBalance = parseFloat(this.value) || 0; saveProjection(); refreshProjectionDerived();">
+      <button class="btn-ghost" onclick="syncStartFromJune()" title="Pull from June"><i class="ti ti-arrow-down"></i> Pull from June</button>
+    </div>
+  </div>
+
+  <!-- Projection table -->
+  <div style="overflow-x:auto;">
+    <table class="tbl" id="projTable" style="min-width:1100px;">
+      <thead>
+        <tr id="projTableHead"></tr>
+      </thead>
+      <tbody id="projTableBody"></tbody>
+      <tfoot id="projTableFoot"></tfoot>
+    </table>
+  </div>
+
+  <div style="margin-top:12px;font-size:11px;color:#85B7EB;display:flex;gap:14px;flex-wrap:wrap;">
+    <span><i class="ti ti-info-circle"></i> Click any value to edit. Use Tab/Shift+Tab to navigate.</span>
+    <span><i class="ti ti-bulb"></i> Negative values are automatically detected as outflows.</span>
+  </div>
+</div>
+
+<!-- Insights / alerts -->
+<div class="card">
+  <div class="card-hd">
+    <span>Key insights</span>
+    <span style="font-size:11px;color:#85B7EB;font-weight:400;">Auto-generated from projection data</span>
+  </div>
+  <div id="projInsights"></div>
+</div>
+
+</div>
+
+<!-- ===== MODAL: ADICIONAR BANCO ===== -->
+<div class="overlay" id="bankModal">
+  <div class="modal">
+    <div class="modal-hd">
+      Add bank
+      <button class="modal-close" onclick="closeModal('bankModal')">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr;gap:10px;">
+      <div class="field">
+        <label>Bank name</label>
+        <input class="inp" id="bkName" placeholder="e.g. Itaú, BTG, Nubank">
+      </div>
+      <div class="field">
+        <label>Current balance (R$)</label>
+        <input class="inp" id="bkVal" type="number" step="0.01" placeholder="0,00">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('bankModal')">Cancel</button>
+      <button class="btn-pri" onclick="addBank()"><i class="ti ti-check"></i> Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: EDITAR BANCO ===== -->
+<div class="overlay" id="editBankModal">
+  <div class="modal">
+    <div class="modal-hd">
+      Edit balance
+      <button class="modal-close" onclick="closeModal('editBankModal')">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr;gap:10px;">
+      <div class="field">
+        <label>Bank</label>
+        <input class="inp" id="ebName" readonly style="opacity:0.7;">
+      </div>
+      <div class="field">
+        <label>New balance (R$)</label>
+        <input class="inp" id="ebVal" type="number" step="0.01">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('editBankModal')">Cancel</button>
+      <button class="btn-pri out" onclick="deleteBank()"><i class="ti ti-trash"></i> Delete</button>
+      <button class="btn-pri" onclick="saveBank()"><i class="ti ti-check"></i> Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: RECONCILIAR DIA ===== -->
+<div class="overlay" id="reconcileModal">
+  <div class="modal">
+    <div class="modal-hd">
+      Reconcile balance
+      <button class="modal-close" onclick="closeModal('reconcileModal')">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr;gap:10px;">
+      <div class="field">
+        <label>Date</label>
+        <input class="inp" id="rcDate" readonly style="opacity:0.7;">
+      </div>
+      <div class="field">
+        <label>Projected balance (calculated)</label>
+        <input class="inp" id="rcProjected" readonly style="opacity:0.7;">
+      </div>
+      <div class="field">
+        <label>Actual day's balance (R$)</label>
+        <input class="inp" id="rcReal" type="number" step="0.01" placeholder="Enter actual bank balance">
+      </div>
+      <div style="font-size:11px;color:#85B7EB;padding:8px;background:rgba(55,138,221,0.08);border-radius:6px;border-left:3px solid #378ADD;">
+        After reconciliation, this day becomes the new starting point for subsequent days. Differences between projected and actual values indicate missing transactions or discrepancies.
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('reconcileModal')">Cancel</button>
+      <button class="btn-pri out" onclick="undoReconcile()" id="undoBtn" style="display:none;"><i class="ti ti-rotate"></i> Remove reconciliation</button>
+      <button class="btn-pri" onclick="saveReconcile()"><i class="ti ti-check"></i> Reconcile</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: DETALHES DO DIA ===== -->
+<div class="overlay" id="dayModal">
+  <div class="modal" style="max-width:720px;">
+    <div class="modal-hd">
+      <div>
+        <div id="dayModalTitle">Day transactions</div>
+        <div id="dayModalSub" style="font-size:11px;color:#85B7EB;font-weight:400;margin-top:3px;"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('dayModal')">✕</button>
+    </div>
+
+    <!-- Resumo do dia -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">
+      <div style="background:rgba(4,44,83,0.6);border:1px solid rgba(93,202,165,0.3);border-radius:8px;padding:10px;">
+        <div style="font-size:9px;color:#85B7EB;text-transform:uppercase;letter-spacing:.06em;">Cash in</div>
+        <div style="font-size:14px;color:#5DCAA5;font-weight:600;margin-top:3px;" id="dayModalIn">R$ 0</div>
+      </div>
+      <div style="background:rgba(4,44,83,0.6);border:1px solid rgba(240,149,149,0.3);border-radius:8px;padding:10px;">
+        <div style="font-size:9px;color:#85B7EB;text-transform:uppercase;letter-spacing:.06em;">Cash out</div>
+        <div style="font-size:14px;color:#F09595;font-weight:600;margin-top:3px;" id="dayModalOut">R$ 0</div>
+      </div>
+      <div style="background:rgba(4,44,83,0.6);border:1px solid rgba(55,138,221,0.4);border-radius:8px;padding:10px;">
+        <div style="font-size:9px;color:#85B7EB;text-transform:uppercase;letter-spacing:.06em;">Day's net</div>
+        <div style="font-size:14px;font-weight:600;margin-top:3px;" id="dayModalNet">R$ 0</div>
+      </div>
+      <div style="background:linear-gradient(135deg,rgba(55,138,221,0.18) 0%,rgba(4,44,83,0.6) 100%);border:1px solid rgba(55,138,221,0.5);border-radius:8px;padding:10px;">
+        <div style="font-size:9px;color:#85B7EB;text-transform:uppercase;letter-spacing:.06em;">Final balance</div>
+        <div style="font-size:14px;color:#fff;font-weight:600;margin-top:3px;" id="dayModalBal">R$ 0</div>
+      </div>
+    </div>
+
+    <!-- Lista de transações -->
+    <div style="max-height:380px;overflow-y:auto;border:1px solid #185FA5;border-radius:8px;background:rgba(4,44,83,0.4);">
+      <table class="tbl" id="dayModalTable">
+        <thead style="position:sticky;top:0;background:#0C447C;z-index:1;">
+          <tr>
+            <th style="width:40px;"></th>
+            <th>Name</th>
+            <th>Category</th>
+            <th style="width:70px;">Certeza</th>
+            <th class="col-val" style="width:130px;">Valor</th>
+            <th style="width:40px;"></th>
+          </tr>
+        </thead>
+        <tbody id="dayModalBody"></tbody>
+      </table>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('dayModal')">Close</button>
+      <button class="btn-pri" onclick="addEntryFromDay()"><i class="ti ti-plus"></i> Add transaction on this day</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// === MODAL DETALHES DO DIA ===
+let dayModalCurrentDate = null;
+
+function openDayModal(dateStr){
+  dayModalCurrentDate = dateStr;
+  const [y,m,d] = dateStr.split('-');
+  const dateObj = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
+  const weekdays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('dayModalTitle').textContent = `${d}/${m}/${y}`;
+  document.getElementById('dayModalSub').textContent = `${weekdays[dateObj.getDay()]} · ${months[parseInt(m)-1]} ${parseInt(d)}, ${y}`;
+
+  // Filtra lançamentos do dia
+  const dayEntries = entries.filter(e => e.date === dateStr)
+    .sort((a,b) => (b.val) - (a.val));
+
+  const totalIn = dayEntries.filter(e => e.type === 'in').reduce((a,e) => a + e.val, 0);
+  const totalOut = dayEntries.filter(e => e.type === 'out').reduce((a,e) => a + e.val, 0);
+  const net = totalIn - totalOut;
+  const balAtEnd = computeBalanceAt(dateStr);
+
+  document.getElementById('dayModalIn').textContent = fmt(totalIn);
+  document.getElementById('dayModalOut').textContent = fmt(totalOut);
+  const netEl = document.getElementById('dayModalNet');
+  netEl.textContent = (net >= 0 ? '+' : '') + fmt(net);
+  netEl.style.color = net >= 0 ? '#5DCAA5' : '#F09595';
+  const balEl = document.getElementById('dayModalBal');
+  if (balAtEnd !== null) {
+    balEl.textContent = fmt(balAtEnd);
+    balEl.style.color = balAtEnd >= 0 ? '#fff' : '#F09595';
+  } else {
+    balEl.textContent = '—';
+    balEl.style.color = '#85B7EB';
+  }
+
+  // Renderiza tabela com agrupamento por categoria
+  const body = document.getElementById('dayModalBody');
+  if (dayEntries.length === 0) {
+    body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#85B7EB;padding:40px 20px;">
+      <i class="ti ti-calendar-off" style="font-size:24px;display:block;margin-bottom:8px;opacity:0.5;"></i>
+      No transactions on this day
+    </td></tr>`;
+  } else {
+    // Agrupa por categoria
+    const byCat = {};
+    dayEntries.forEach(e => {
+      if (!byCat[e.cat]) byCat[e.cat] = {items: [], total: 0, type: e.type};
+      byCat[e.cat].items.push(e);
+      byCat[e.cat].total += (e.type === 'in' ? 1 : -1) * e.val;
+    });
+
+    // Ordena: in primeiro, depois por valor absoluto
+    const sortedCats = Object.entries(byCat).sort((a, b) => {
+      if (a[1].type !== b[1].type) return a[1].type === 'in' ? -1 : 1;
+      return Math.abs(b[1].total) - Math.abs(a[1].total);
+    });
+
+    const certLabels = {high:'High', med:'Med', low:'Low'};
+
+    // Se há poucos itens (<=8), mostra todos expandidos.
+    // Se há muitos, agrupa por categoria colapsável.
+    const useGrouping = dayEntries.length > 8;
+
+    let html = '';
+    sortedCats.forEach(([cat, info], catIdx) => {
+      const catColor = getCatColor(cat);
+      const catKey = `cat-${dateStr}-${catIdx}`;
+      const isIn = info.type === 'in';
+      const itemCount = info.items.length;
+
+      if (useGrouping) {
+        // Header da categoria colapsável
+        html += `<tr class="cat-group-row" data-cat-key="${catKey}" onclick="toggleCatGroup('${catKey}')" style="cursor:pointer;">
+          <td style="text-align:center;">
+            <i class="ti ti-chevron-right cat-chevron" id="chevron-${catKey}" style="color:${catColor};font-size:14px;transition:transform .15s ease;"></i>
+          </td>
+          <td>
+            <span style="color:${catColor};font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em;">${cat}</span>
+            <span style="color:#85B7EB;font-size:10px;margin-left:8px;">${itemCount} item${itemCount !== 1 ? 's' : ''}</span>
+          </td>
+          <td></td>
+          <td></td>
+          <td class="col-val" style="color:${isIn ? '#5DCAA5' : '#F09595'};font-weight:700;">
+            ${isIn ? '+' : ''}${fmt(info.total)}
+          </td>
+          <td></td>
+        </tr>`;
+        // Items da categoria (escondidos por padrão)
+        info.items.forEach(e => {
+          const typeIcon = e.type === 'in'
+            ? '<span style="color:#5DCAA5;font-size:14px;">↑</span>'
+            : '<span style="color:#F09595;font-size:14px;">↓</span>';
+          const isPending = e.val === 0;
+          const valDisplay = isPending
+            ? '<span style="color:#FAC775;font-style:italic;font-weight:500;">Pending</span>'
+            : `${e.type === 'in' ? '+' : '-'}${fmt(e.val)}`;
+          html += `<tr class="cat-item-row" data-cat-key="${catKey}" style="display:none;background:${isPending ? 'rgba(250,199,117,0.06)' : 'rgba(4,44,83,0.3)'};">
+            <td style="text-align:center;padding-left:24px;">${typeIcon}</td>
+            <td style="padding-left:24px;">
+              <div style="color:#E6F1FB;font-weight:500;font-size:11px;">${e.name}</div>
+              ${e.desc ? `<div style="font-size:10px;color:#85B7EB;margin-top:2px;line-height:1.3;">${e.desc}</div>` : ''}
+            </td>
+            <td></td>
+            <td><span class="cert ${e.cert}">${certLabels[e.cert]}</span></td>
+            <td class="col-val ${e.type}">${valDisplay}</td>
+            <td><button class="btn-del" onclick="event.stopPropagation();removeEntryFromDayModal(${e.id})" title="Remove"><i class="ti ti-trash"></i></button></td>
+          </tr>`;
+        });
+      } else {
+        // Modo expandido: cabeçalho de categoria simples (não-clicável) + items diretos
+        if (sortedCats.length > 1) {
+          html += `<tr style="background:rgba(24,95,165,0.08);">
+            <td colspan="6" style="padding:6px 10px;">
+              <span style="color:${catColor};font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.05em;">${cat}</span>
+              <span style="color:#85B7EB;font-size:10px;margin-left:8px;">${itemCount} · ${fmt(Math.abs(info.total))}</span>
+            </td>
+          </tr>`;
+        }
+        info.items.forEach(e => {
+          const typeIcon = e.type === 'in'
+            ? '<span style="color:#5DCAA5;font-size:14px;">↑</span>'
+            : '<span style="color:#F09595;font-size:14px;">↓</span>';
+          const isPending = e.val === 0;
+          const valDisplay = isPending
+            ? '<span style="color:#FAC775;font-style:italic;font-weight:500;">Pending</span>'
+            : `${e.type === 'in' ? '+' : '-'}${fmt(e.val)}`;
+          html += `<tr ${isPending ? 'style="background:rgba(250,199,117,0.05);"' : ''}>
+            <td style="text-align:center;">${typeIcon}</td>
+            <td>
+              <div style="color:#fff;font-weight:500;">${e.name}</div>
+              ${e.desc ? `<div style="font-size:10px;color:#85B7EB;margin-top:2px;line-height:1.3;">${e.desc}</div>` : ''}
+            </td>
+            <td><span style="font-size:10px;color:#85B7EB;text-transform:uppercase;letter-spacing:.04em;">${e.cat}</span></td>
+            <td><span class="cert ${e.cert}">${certLabels[e.cert]}</span></td>
+            <td class="col-val ${e.type}">${valDisplay}</td>
+            <td><button class="btn-del" onclick="removeEntryFromDayModal(${e.id})" title="Remove"><i class="ti ti-trash"></i></button></td>
+          </tr>`;
+        });
+      }
+    });
+    body.innerHTML = html;
+  }
+
+  openModal('dayModal');
+}
+
+// Expande/colapsa grupo de categoria no modal do dia
+function toggleCatGroup(catKey){
+  const items = document.querySelectorAll(`.cat-item-row[data-cat-key="${catKey}"]`);
+  const chevron = document.getElementById(`chevron-${catKey}`);
+  const isOpen = items.length > 0 && items[0].style.display !== 'none';
+  items.forEach(item => {
+    item.style.display = isOpen ? 'none' : '';
+  });
+  if (chevron) {
+    chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+  }
+}
+
+function removeEntryFromDayModal(id){
+  if (!confirm('Remove this transaction?')) return;
+  entries = entries.filter(e => e.id !== id);
+  save();
+  renderAll();
+  // Reabre o modal com os dados atualizados
+  if (dayModalCurrentDate) openDayModal(dayModalCurrentDate);
+}
+
+function addEntryFromDay(){
+  if (!dayModalCurrentDate) return;
+  closeModal('dayModal');
+  // Preenche a data e foca no campo nome
+  document.getElementById('fDate').value = dayModalCurrentDate;
+  document.getElementById('fName').focus();
+  // Scroll suave para o formulário
+  document.getElementById('fName').scrollIntoView({behavior:'smooth', block:'center'});
+}
+</script>
+
+<script>
+// ===== STATE =====
+// Dados pré-carregados: junho/2026 - Banco Bradesco (planilha 11/06, com pendings)
+let entries = [
+  {
+    "id": 1700000000000,
+    "date": "2026-06-01",
+    "type": "out",
+    "name": "VELOE",
+    "cat": "PENDING ITEMS",
+    "val": 500,
+    "desc": "TOLL EXPENSES",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000001,
+    "date": "2026-06-01",
+    "type": "out",
+    "name": "FISCHER & RECHSTEINER LOGISTICA INTEGRADA",
+    "cat": "FORECAST",
+    "val": 2930,
+    "desc": "NATIONALIZATION 21166/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000002,
+    "date": "2026-06-01",
+    "type": "out",
+    "name": "BANK RATES",
+    "cat": "OUTROS",
+    "val": 4.79,
+    "desc": "N/A",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000003,
+    "date": "2026-06-02",
+    "type": "out",
+    "name": "BANK RATES",
+    "cat": "OUTROS",
+    "val": 188,
+    "desc": "N/A",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000004,
+    "date": "2026-06-03",
+    "type": "out",
+    "name": "BANK RATES",
+    "cat": "OUTROS",
+    "val": 4.85,
+    "desc": "",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000005,
+    "date": "2026-06-05",
+    "type": "in",
+    "name": "OLIMAQUINAS TRATORES E IMPLEMENT",
+    "cat": "RECEIVABLES",
+    "val": 341.26,
+    "desc": "NF 1923",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000006,
+    "date": "2026-06-05",
+    "type": "out",
+    "name": "BANK RATES",
+    "cat": "OUTROS",
+    "val": 7.869999999999999,
+    "desc": "N/A",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000007,
+    "date": "2026-06-08",
+    "type": "in",
+    "name": "KL AGRONEGOCIOS LTDA",
+    "cat": "RECEIVABLES",
+    "val": 792.02,
+    "desc": "NF 1893",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000008,
+    "date": "2026-06-08",
+    "type": "in",
+    "name": "KL AGRONEGOCIOS LTDA",
+    "cat": "RECEIVABLES",
+    "val": 6339.73,
+    "desc": "NF 1894",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000009,
+    "date": "2026-06-08",
+    "type": "in",
+    "name": "FISCHER & RECHSTEINER LOGISTICA INTEGRADA",
+    "cat": "RECEIVABLES",
+    "val": 64.02,
+    "desc": "REIMBURSMENT",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000010,
+    "date": "2026-06-08",
+    "type": "in",
+    "name": "EAVISION GLOBAL LTDA.",
+    "cat": "RECEIVABLES",
+    "val": 8000,
+    "desc": "FROM SANTNADER ACCOUNT",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000011,
+    "date": "2026-06-08",
+    "type": "out",
+    "name": "TRACTIAN TECNOLOGIA LTDA.",
+    "cat": "FORECAST",
+    "val": 1050,
+    "desc": "SOFTWARE - MAINTENANCE",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000012,
+    "date": "2026-06-08",
+    "type": "out",
+    "name": "AURORA TERMINAIS E SERVICOS LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 1448.3,
+    "desc": "NATIONALIZATION - 21168/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000013,
+    "date": "2026-06-08",
+    "type": "out",
+    "name": "AURORA TERMINAIS E SERVICOS LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 463.81,
+    "desc": "NATIONALIZATION - 21168/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000014,
+    "date": "2026-06-08",
+    "type": "out",
+    "name": "AURORA TERMINAIS E SERVICOS LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 293.05,
+    "desc": "NATIONALIZATION - 21167/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000015,
+    "date": "2026-06-08",
+    "type": "out",
+    "name": "AURORA TERMINAIS E SERVICOS LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 846.91,
+    "desc": "NATIONALIZATION - 21167/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000016,
+    "date": "2026-06-08",
+    "type": "out",
+    "name": "KINGSHIP LINE LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 2556.2,
+    "desc": "FREIGHT FOR SHIPPING PARTS TO CHINA",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000017,
+    "date": "2026-06-08",
+    "type": "out",
+    "name": "AUGUSTO SECAROLLI DA SILVEIRA",
+    "cat": "PAYROLL",
+    "val": 3578.1,
+    "desc": "VACATION",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000018,
+    "date": "2026-06-08",
+    "type": "out",
+    "name": "TRANSGUERRA LOGISTICA EIRELI",
+    "cat": "PENDING ITEMS",
+    "val": 2246.3,
+    "desc": "COURIER EXPENSES - TANZANIA SELL - CTE 21503",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000019,
+    "date": "2026-06-08",
+    "type": "out",
+    "name": "MARIA RITA DA SILVA",
+    "cat": "PENDING ITEMS",
+    "val": 350,
+    "desc": "BONGO'S TOW TRUCK",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000020,
+    "date": "2026-06-09",
+    "type": "in",
+    "name": "KL AGRONEGOCIOS LTDA",
+    "cat": "RECEIVABLES",
+    "val": 6692.34,
+    "desc": "NF 1903",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000021,
+    "date": "2026-06-09",
+    "type": "out",
+    "name": "MERCADO PAGO LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 292.91,
+    "desc": "OFFICE MATERIALS",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000022,
+    "date": "2026-06-09",
+    "type": "out",
+    "name": "UNIMED DE RIBEIRAO PRETO COOPERATIVA DE TRABALHO MEDICO",
+    "cat": "PENDING ITEMS",
+    "val": 10734.19,
+    "desc": "HEALTH PLAN - MAY/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000023,
+    "date": "2026-06-09",
+    "type": "in",
+    "name": "BANK RATES",
+    "cat": "OUTROS",
+    "val": 0.03,
+    "desc": "N/A",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000024,
+    "date": "2026-06-10",
+    "type": "in",
+    "name": "IPIRANGA AGROINDUSTRIAL S.A.",
+    "cat": "RECEIVABLES",
+    "val": 8979.57,
+    "desc": "NF 567",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000025,
+    "date": "2026-06-10",
+    "type": "in",
+    "name": "IPIRANGA AGROINDUSTRIAL S.A.",
+    "cat": "RECEIVABLES",
+    "val": 19391.38,
+    "desc": "NF 568",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000026,
+    "date": "2026-06-10",
+    "type": "in",
+    "name": "IPIRANGA AGROINDUSTRIAL S.A.",
+    "cat": "RECEIVABLES",
+    "val": 5645.84,
+    "desc": "NF 569",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000027,
+    "date": "2026-06-10",
+    "type": "in",
+    "name": "IPIRANGA AGROINDUSTRIAL S.A.",
+    "cat": "RECEIVABLES",
+    "val": 10660.43,
+    "desc": "NF 570",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000028,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "LM TRANSPORTES INTERESTADUAIS SERVICOS E COMERCIO S.A",
+    "cat": "PENDING ITEMS",
+    "val": 1098.81,
+    "desc": "VEHICLE RENTAL (DEZ/24) C. CRÉDITO (18X)",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000029,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "LM TRANSPORTES INTERESTADUAIS SERVICOS E COMERCIO S.A",
+    "cat": "PENDING ITEMS",
+    "val": 799.16,
+    "desc": "VEHICLE RENTAL (DEZ/24) C. CRÉDITO (18X)",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000030,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "Propig *SJP BATER 004/004",
+    "cat": "PENDING ITEMS",
+    "val": 232.5,
+    "desc": "BARTER FEE",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000031,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "REN*M R PNEUS MAR 004/004",
+    "cat": "PENDING ITEMS",
+    "val": 1027.5,
+    "desc": "BONGO TYRE - PURCHASE",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000032,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "GIRON MECANICA AU 004/004",
+    "cat": "PENDING ITEMS",
+    "val": 491.32,
+    "desc": "BONGO MAINTENANCE - BREAK",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000033,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "FACEBOOK ADVERTISEMENTS",
+    "cat": "PENDING ITEMS",
+    "val": 1685.92,
+    "desc": "MKT ADVERTISEMENTS - FACEBOOK - MAR/26 (28/03 TO 24/04)",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000034,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "GOOGLE WORKSPACE",
+    "cat": "PENDING ITEMS",
+    "val": 294,
+    "desc": "MKT & OPE - SYSTEM",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000035,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "IG*chatPro",
+    "cat": "PENDING ITEMS",
+    "val": 499,
+    "desc": "CHAT PRO - CLIENT COMUNICATION SYSTEM",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000036,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "PRETENSE MOTORS 002/005",
+    "cat": "PENDING ITEMS",
+    "val": 1274.16,
+    "desc": "BONGO MAINTENANCE - FUEL TANK",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000037,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "APOLLO.IO",
+    "cat": "PENDING ITEMS",
+    "val": 1021.68,
+    "desc": "CUSTOMER DATA AND CONTACT RESEARCH PROGRAM",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000038,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "AMAZON AWS SERVICOS BRASIL LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 187.98,
+    "desc": "WEBSITE REGISTER FEE - JAN/25",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000039,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "OPENAI *CHATGPT SUBSCRIPTION",
+    "cat": "PENDING ITEMS",
+    "val": 99.9,
+    "desc": "CHATGPT SUBSCRIPTION - MKT DEPARTMENT",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000040,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "TOYAMA DO BR*2212 002/005",
+    "cat": "PENDING ITEMS",
+    "val": 3551,
+    "desc": "GENERATOR PURCHASE",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000041,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "IOF",
+    "cat": "TAXES",
+    "val": 46.24,
+    "desc": "FEES RELATED TO INTENACIONAL PURCHASES",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000042,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "LINKEDIN",
+    "cat": "PENDING ITEMS",
+    "val": 69.99,
+    "desc": "LINKEDIN PRO ASSIGNATURE",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000043,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "REMOTE ROCKETSHIP",
+    "cat": "PENDING ITEMS",
+    "val": 147.48,
+    "desc": "DISCOUNT ON ALEX PAYROLL",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000044,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "LOCALIZA VEICULOS",
+    "cat": "PENDING ITEMS",
+    "val": 4405.68,
+    "desc": "CAR RENTAL MAY.26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000045,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "PLESK",
+    "cat": "PENDING ITEMS",
+    "val": 87.84,
+    "desc": "HOSTING SERVICES",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000046,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "DROP AGRICULTURA",
+    "cat": "PENDING ITEMS",
+    "val": 1331.35,
+    "desc": "INSTALLMENT 001/006",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000047,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "CANVA",
+    "cat": "PENDING ITEMS",
+    "val": 289.9,
+    "desc": "DESIGN SERVICES",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000048,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "CLAUDE AI",
+    "cat": "PENDING ITEMS",
+    "val": 3452.75,
+    "desc": "CLAUDE SUBSCRIPTION",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000049,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "OPENAI *CHATGPT SUBSCRIPTION",
+    "cat": "PENDING ITEMS",
+    "val": 106,
+    "desc": "CHATGPT SUBSCRIPTION - MKT DEPARTMENT",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000050,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "BASE44",
+    "cat": "PENDING ITEMS",
+    "val": 105.6,
+    "desc": "AI FOR OP. MANAGEMENT SYSTEM",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000051,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "RECEITA FEDERAL DO BRASIL",
+    "cat": "PENDING ITEMS",
+    "val": 5195.81,
+    "desc": "CONTRATUAL TERMINATION - FGTS",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000052,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "ECONET PUBLICACOES PERIODICAS LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 782.28,
+    "desc": "TAX CONSULTING SYSTEM",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000053,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "LM TRANSPORTES INTERESTADUAIS SERVICOS E COMERCIO S.A",
+    "cat": "PENDING ITEMS",
+    "val": 1783.38,
+    "desc": "VEHICLE RENTAL (MAY/26)",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000054,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "LM TRANSPORTES INTERESTADUAIS SERVICOS E COMERCIO S.A",
+    "cat": "PENDING ITEMS",
+    "val": 2721.83,
+    "desc": "VEHICLE RENTAL (MAY/26)",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000055,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "LONGPING HIGH TECH - BIOTECNOLOGIA LTDA.",
+    "cat": "PENDING ITEMS",
+    "val": 11781.25,
+    "desc": "RENTAL - FEV/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000056,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "LONGPING HIGH TECH - BIOTECNOLOGIA LTDA.",
+    "cat": "PENDING ITEMS",
+    "val": 1457.06,
+    "desc": "CHATERED BUS - LPHT - ABR/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000057,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "DSA TECHNOLOGY CONSULTING LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 1000,
+    "desc": "WEBSITE CRIATION AND MAINTENCE",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000058,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "GRANDIESEL",
+    "cat": "PENDING ITEMS",
+    "val": 200,
+    "desc": "SCANNER DS - BONGO",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000059,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "CONSELHO REGIONAL DE ENGENHARIA E AGRONOMIA",
+    "cat": "TAXES",
+    "val": 108.39,
+    "desc": "COMPANY AND PRODUCT REGULATORY COMPLIANCE – MAPA (FERTILIZER)",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000060,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "EPICAL EQUIPAMENTOS DE PROTECAO INDIVIDUAIS LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 1082.9,
+    "desc": "EPIs",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000061,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "INFLEET SOLUCOES EM TECNOLOGIA LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 2258.25,
+    "desc": "VEHICLE TELEMETRY",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000062,
+    "date": "2026-06-10",
+    "type": "out",
+    "name": "BANK RATES",
+    "cat": "OUTROS",
+    "val": 6.04,
+    "desc": "N/A",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000063,
+    "date": "2026-06-11",
+    "type": "in",
+    "name": "USINA GRANELLI",
+    "cat": "RECEIVABLES",
+    "val": 0,
+    "desc": "NF 566 (pending — value TBD)",
+    "cert": "low"
+  },
+  {
+    "id": 1700000000064,
+    "date": "2026-06-11",
+    "type": "in",
+    "name": "AGRO ATLAS BRASIL LTDA",
+    "cat": "RECEIVABLES",
+    "val": 5534.34,
+    "desc": "NF 1847",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000065,
+    "date": "2026-06-11",
+    "type": "in",
+    "name": "JFI SERVICOS LTDA",
+    "cat": "RECEIVABLES",
+    "val": 3610.14,
+    "desc": "NF 1862 E NFS-e 552",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000066,
+    "date": "2026-06-11",
+    "type": "in",
+    "name": "CAMPO FORTE COMERCIO",
+    "cat": "RECEIVABLES",
+    "val": 3583.21,
+    "desc": "NF 1906 e 1914",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000067,
+    "date": "2026-06-11",
+    "type": "out",
+    "name": "DAIANE BASTO DE LIMA SILVEIRA RODRIGUES",
+    "cat": "LAWSUIT",
+    "val": 3850,
+    "desc": "LEGAL AGREEMENT - LABOR LAWSUIT - JOSE VINICIUS APARECIDO DOMINGOS",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000068,
+    "date": "2026-06-11",
+    "type": "out",
+    "name": "BRASIL SALOMAO E MATTHES ADVOCACIA",
+    "cat": "PENDING ITEMS",
+    "val": 2064.7,
+    "desc": "LAWYERS - JUN/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000069,
+    "date": "2026-06-11",
+    "type": "out",
+    "name": "ETICA CONTABILIDADE E ASSESSORIA S/S",
+    "cat": "PENDING ITEMS",
+    "val": 2247.93,
+    "desc": "ACCOUNTING OFFICE (REF. MAY/26) -  SC BRANCH",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000070,
+    "date": "2026-06-11",
+    "type": "out",
+    "name": "ETICA CONTABILIDADE E ASSESSORIA S/S",
+    "cat": "PENDING ITEMS",
+    "val": 6270.15,
+    "desc": "ACCOUNTING OFFICE (REF. MAY/26) -  CRAVINHOS/SP",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000071,
+    "date": "2026-06-11",
+    "type": "out",
+    "name": "ETICA CONTABILIDADE E ASSESSORIA S/S",
+    "cat": "PENDING ITEMS",
+    "val": 2247.93,
+    "desc": "ACCOUNTING OFFICE (REF. APR/26) -  SC BRANCH",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000072,
+    "date": "2026-06-11",
+    "type": "out",
+    "name": "ETICA CONTABILIDADE E ASSESSORIA S/S",
+    "cat": "PENDING ITEMS",
+    "val": 6270.15,
+    "desc": "ACCOUNTING OFFICE (REF. APR/26) -  CRAVINHOS/SP",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000073,
+    "date": "2026-06-11",
+    "type": "out",
+    "name": "BRASIL SALOMAO E MATTHES ADVOCACIA",
+    "cat": "PENDING ITEMS",
+    "val": 2064.7,
+    "desc": "LAWYERS - MAY/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000074,
+    "date": "2026-06-11",
+    "type": "out",
+    "name": "FERNANDO, NAGAO, CARDONE, ALVAREZ SOCIEDADE DE ADVOGADOS",
+    "cat": "PENDING ITEMS",
+    "val": 2346.25,
+    "desc": "LAWEYRS SUCCESS FEE - LM TRANSPORTES - LAWSUIT",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000075,
+    "date": "2026-06-11",
+    "type": "out",
+    "name": "FERREIRA DE ALMEIDA CONSULTORIA LTDA",
+    "cat": "PAYROLL",
+    "val": 19774.86,
+    "desc": "PJ PAYROLL",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000076,
+    "date": "2026-06-11",
+    "type": "out",
+    "name": "LUIS FERREIRA DE ALMEIDA",
+    "cat": "REEIMBURSEMENT",
+    "val": 388.5,
+    "desc": "HEALTH & CARE - REIMBURSEMENT - UNIMED - MAY/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000077,
+    "date": "2026-06-11",
+    "type": "out",
+    "name": "ANTONIO CARLOS MENDES JUNIOR",
+    "cat": "PAYROLL",
+    "val": 5313.17,
+    "desc": "COMMERCIAL COMISSIONS - DRONE SALES",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000078,
+    "date": "2026-06-12",
+    "type": "out",
+    "name": "LANLINK SOLUCOES E COMERCIALIZACAO EM INFORMATICA S/A",
+    "cat": "OUTROS",
+    "val": 1712.98,
+    "desc": "MICROSOFT LICENSE - MAY/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000079,
+    "date": "2026-06-12",
+    "type": "out",
+    "name": "63.948.294 FELIX DE SOUZA NETO",
+    "cat": "PAYROLL",
+    "val": 1872.5,
+    "desc": "PJ PAYROLL + COMISSION",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000080,
+    "date": "2026-06-15",
+    "type": "out",
+    "name": "PAGAMENTO FUNCIONARIOS",
+    "cat": "PAYROLL",
+    "val": 17097.55,
+    "desc": "PAYROLL - CLT",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000081,
+    "date": "2026-06-15",
+    "type": "out",
+    "name": "FAST-SEG MEDICINA E ENGENHARIA DE SEGURANCA DO TRABALHO LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 266,
+    "desc": "MONTHLY FEE",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000082,
+    "date": "2026-06-15",
+    "type": "out",
+    "name": "FAST-SEG MEDICINA E ENGENHARIA DE SEGURANCA DO TRABALHO LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 525,
+    "desc": "NFR-01 - EXAMS - INSTALLMENT 002/002",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000083,
+    "date": "2026-06-15",
+    "type": "out",
+    "name": "SINDICATO DOS EMPREGADOS NO COMÉRCIO DE RIBEIRÃO PRETO",
+    "cat": "PENDING ITEMS",
+    "val": 53,
+    "desc": "ASSOCIATIONS AND UNIONS",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000084,
+    "date": "2026-06-15",
+    "type": "out",
+    "name": "EAVISION GLOBAL LTDA.",
+    "cat": "TRANSFER",
+    "val": 100,
+    "desc": "BANCO DO BRASIL BANK ACCOUNT",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000085,
+    "date": "2026-06-15",
+    "type": "out",
+    "name": "OMIEXPERIENCE S.A.",
+    "cat": "PENDING ITEMS",
+    "val": 309,
+    "desc": "ERP SYSTEM",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000086,
+    "date": "2026-06-15",
+    "type": "out",
+    "name": "PREFEITURA MUNICIPAL DE CRAVINHOS",
+    "cat": "TAXES",
+    "val": 1500,
+    "desc": "ISS - SERVICES PROVIDED - MAY/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000087,
+    "date": "2026-06-15",
+    "type": "in",
+    "name": "JFI SERVICOS LTDA",
+    "cat": "RECEIVABLES",
+    "val": 837.24,
+    "desc": "NF 1868",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000088,
+    "date": "2026-06-15",
+    "type": "out",
+    "name": "AGRICULTURAL DEFENSE AUTHORITY",
+    "cat": "PENDING ITEMS",
+    "val": 4928.88,
+    "desc": "NOTICE OF VIOLATION",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000089,
+    "date": "2026-06-16",
+    "type": "out",
+    "name": "FISCHER & RECHSTEINER LOGISTICA INTEGRADA",
+    "cat": "PENDING ITEMS",
+    "val": 2000,
+    "desc": "BROKER EXPENSES - EXPORT TO SANTIAGRO (TANZÂNIA)",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000090,
+    "date": "2026-06-17",
+    "type": "out",
+    "name": "BANCO BRADESCO",
+    "cat": "LOANS",
+    "val": 5413.02,
+    "desc": "FINANCING - BONGO TRUCK",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000091,
+    "date": "2026-06-17",
+    "type": "out",
+    "name": "ASX LOGISTICS LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 19766,
+    "desc": "Tanzania - Commercial Invoice EAV2026-010",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000092,
+    "date": "2026-06-18",
+    "type": "out",
+    "name": "SUPREMA ALIMENTACAO CORP.EIRELI",
+    "cat": "PENDING ITEMS",
+    "val": 4481.37,
+    "desc": "LPHT RESTAURANT",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000093,
+    "date": "2026-06-19",
+    "type": "out",
+    "name": "DARF DCTFWEB",
+    "cat": "TAXES",
+    "val": 44818.94,
+    "desc": "INSS, PIS & COFINS - APR/26 - MONTHLY PAYROLL",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000094,
+    "date": "2026-06-19",
+    "type": "out",
+    "name": "CAIXA ECONOMICA FEDERAL",
+    "cat": "PAYROLL",
+    "val": 9874.22,
+    "desc": "FGTS - REF. MAY/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000095,
+    "date": "2026-06-19",
+    "type": "out",
+    "name": "BUDGET - MAN (ONFLY)",
+    "cat": "PENDING ITEMS",
+    "val": 310.01,
+    "desc": "ZOHO SYSTEM LICENSE - MOTHLY FEE",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000096,
+    "date": "2026-06-19",
+    "type": "out",
+    "name": "LM TRANSPORTES INTERESTADUAIS SERVICOS E COMERCIO S.A",
+    "cat": "PENDING ITEMS",
+    "val": 3081.97,
+    "desc": "TRUCK REPAIR 001/003",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000097,
+    "date": "2026-06-22",
+    "type": "out",
+    "name": "METROPOLITAN LIFE SEGUROS E PREVIDENCIA PRIVADA",
+    "cat": "PENDING ITEMS",
+    "val": 543.66,
+    "desc": "LIFE INSURANCE - MAY/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000098,
+    "date": "2026-06-22",
+    "type": "out",
+    "name": "CHUBB SEGUROS BRASIL S.A.",
+    "cat": "PENDING ITEMS",
+    "val": 536.9,
+    "desc": "CARGO INSURANCE - MAY/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000099,
+    "date": "2026-06-22",
+    "type": "out",
+    "name": "ONFLY TECNOLOGIA LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 199.99,
+    "desc": "MONTHLY FEE",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000100,
+    "date": "2026-06-22",
+    "type": "out",
+    "name": "FLASH TECNOLOGIA E INSTITUIÇÃO DE PAGAMENTO LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 233.28,
+    "desc": "PAYROLL - SYSTEM (FOLHA CERTA)",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000101,
+    "date": "2026-06-22",
+    "type": "out",
+    "name": "FIDELITY PESQUISAS CADASTRAIS LTDA ME",
+    "cat": "PENDING ITEMS",
+    "val": 45,
+    "desc": "CONSULTATION SYSTEM - CUSTOMER BACKGROUND",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000102,
+    "date": "2026-06-22",
+    "type": "out",
+    "name": "HAITONG BANCO DE INVESTIMENTO DO BRASIL S.A.",
+    "cat": "PENDING ITEMS",
+    "val": 11262,
+    "desc": "FINANCIAL ADVISORY - EAVISION GLOBAL LTDA. MARKET VALUE",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000103,
+    "date": "2026-06-22",
+    "type": "out",
+    "name": "FERNANDO, NAGAO, CARDONE, ALVAREZ SOCIEDADE DE ADVOGADOS",
+    "cat": "PENDING ITEMS",
+    "val": 4000.05,
+    "desc": "LAWYERS - MAY/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000104,
+    "date": "2026-06-22",
+    "type": "out",
+    "name": "RAGB - CONSULTORIA (SKYWALKER AGRO LTDA.)",
+    "cat": "PENDING ITEMS",
+    "val": 4000,
+    "desc": "NEW BUSINESS ADVISORY",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000105,
+    "date": "2026-06-22",
+    "type": "out",
+    "name": "BUDGET - MAN (ONFLY)",
+    "cat": "PENDING ITEMS",
+    "val": 230,
+    "desc": "ZOHO SYSTEM LICENSE - MOTHLY FEE",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000106,
+    "date": "2026-06-22",
+    "type": "in",
+    "name": "EMPRESA BRASILEIRA DE CORREIOS E TELÉGRAFOS",
+    "cat": "PENDING ITEMS",
+    "val": 1105.9857142857145,
+    "desc": "BATTERIES 30XP / SPARE PARTS FREIGHT",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000107,
+    "date": "2026-06-22",
+    "type": "out",
+    "name": "GRID COWORKING LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 249.16,
+    "desc": "TAX ADRESS - JOINVILLE/SC",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000108,
+    "date": "2026-06-22",
+    "type": "out",
+    "name": "MOVIDA ALUGUEL DE CARROS",
+    "cat": "PENDING ITEMS",
+    "val": 3167.79,
+    "desc": "CAR RENT - MAY.26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000109,
+    "date": "2026-06-23",
+    "type": "out",
+    "name": "BARRA DO RIO TERMINAL PORTUARIO S.A",
+    "cat": "PENDING ITEMS",
+    "val": 1393.2133333333336,
+    "desc": "DRY DOCK EXPENSES - REF. PROCESS 23199/25",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000110,
+    "date": "2026-06-23",
+    "type": "out",
+    "name": "AURORA TERMINAIS E SERVICOS LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 13199.58,
+    "desc": "DRY DOCK EXPENSES - REF. NF 260095 e 260096",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000111,
+    "date": "2026-06-25",
+    "type": "out",
+    "name": "DOMINIUM EQUIPAMENTOS LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 2609,
+    "desc": "LAPTOP - RENTAL",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000112,
+    "date": "2026-06-25",
+    "type": "out",
+    "name": "MONISYSTEM SISTEMA DE INFORMAÇÕES LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 135.4,
+    "desc": "RISK MANAGEMENT - INSURANCE CARGO",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000113,
+    "date": "2026-06-25",
+    "type": "out",
+    "name": "BUDGET RH (ONFLY)",
+    "cat": "REEIMBURSEMENT",
+    "val": 475,
+    "desc": "BIRTHDAY CELEBRANTS OF THE MONTH",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000114,
+    "date": "2026-06-25",
+    "type": "out",
+    "name": "LONGPING HIGH TECH - BIOTECNOLOGIA LTDA.",
+    "cat": "PENDING ITEMS",
+    "val": 11781.25,
+    "desc": "RENTAL - MAR/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000115,
+    "date": "2026-06-26",
+    "type": "out",
+    "name": "LOJAS 360 INDUSTRIA COMERCIO IMPORTACAO EXPORTACAO LTDA RIB",
+    "cat": "PENDING ITEMS",
+    "val": 665.49,
+    "desc": "EPI ITENS",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000116,
+    "date": "2026-06-26",
+    "type": "out",
+    "name": "AURORA TERMINAIS E SERVICOS LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 9494.06,
+    "desc": "DRY DOCK EXPENSES - TANZANIA EXPORT - NF 260802",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000117,
+    "date": "2026-06-26",
+    "type": "out",
+    "name": "AURORA TERMINAIS E SERVICOS LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 2630.67,
+    "desc": "DRY DOCK EXPENSES - TANZANIA EXPORT - NF 260803",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000118,
+    "date": "2026-06-26",
+    "type": "out",
+    "name": "AURORA TERMINAIS E SERVICOS LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 1117.9,
+    "desc": "DRY DOCK EXPENSES - TANZANIA EXPORT - NF 260804",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000119,
+    "date": "2026-06-26",
+    "type": "out",
+    "name": "TIAGO ALEXANDRE JURADO",
+    "cat": "PAYROLL",
+    "val": 2376.47,
+    "desc": "VACATION CLT",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000120,
+    "date": "2026-06-29",
+    "type": "out",
+    "name": "BARRA DO RIO TERMINAL PORTUARIO S.A",
+    "cat": "PENDING ITEMS",
+    "val": 1793.224,
+    "desc": "DRY DOCK EXPENSES - REF. PROCESS 20152/25",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000121,
+    "date": "2026-06-29",
+    "type": "out",
+    "name": "TRANSGUERRA LOGISTICA EIRELI",
+    "cat": "PENDING ITEMS",
+    "val": 6422.08,
+    "desc": "FREIGHT SHAMBA ZION",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000122,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "JESSICA RIBEIRO FREIRE",
+    "cat": "PAYROLL",
+    "val": 2206.49,
+    "desc": "EMPLOYEE TERMINATION 02/07",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000123,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "AURORA TERMINAIS E SERVICOS LTDA",
+    "cat": "PENDING ITEMS",
+    "val": 9604.56,
+    "desc": "DRY DOCK EXPENSES - REF. JUN/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000124,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "PAGAMENTO FUNCIONARIOS",
+    "cat": "PAYROLL",
+    "val": 31052.499999999996,
+    "desc": "PAYROLL - CLT",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000125,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "VIVIAN CRISTINA DE ALMEIDA SEVERO",
+    "cat": "PAYROLL",
+    "val": 1323.25,
+    "desc": "PENSION: VIVIAN CRISTINA DE ALMEIDA SEVERO (DANIEL PORTO PELÁ)",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000126,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "HUI WANG",
+    "cat": "PAYROLL",
+    "val": 1442.69,
+    "desc": "PRO-LABORE - MAR/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000127,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "DARF - PARCELAMENTO DCTF WEB (MAI/25 À NOV/25)",
+    "cat": "TAXES",
+    "val": 9271.310625,
+    "desc": "04/60 INSTALLMENTS - TAX FINANCING - INSS, PIS, COFINS, ETC.",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000128,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "FLASH TECNOLOGIA E INSTITUIÇÃO DE PAGAMENTO LTDA",
+    "cat": "PAYROLL",
+    "val": 6100,
+    "desc": "FUEL ASSISTANCE",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000129,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "61.921.616 PEDRO AUGUSTO SERVIDONI BENEDETTI",
+    "cat": "PAYROLL",
+    "val": 4750,
+    "desc": "PJ PAYROLL",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000130,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "61.921.616 PEDRO AUGUSTO SERVIDONI BENEDETTI",
+    "cat": "PAYROLL",
+    "val": 1925,
+    "desc": "OPERATIONAL COMISSIONS - USINA GRANELLI",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000131,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "GEOSYSTEM SOLUCOES EM AGRICULTURA DE PRECISAO LTDA",
+    "cat": "PAYROLL",
+    "val": 8500,
+    "desc": "PJ PAYROLL",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000132,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "ANTONIO CARLOS MENDES JUNIOR",
+    "cat": "PAYROLL",
+    "val": 10500,
+    "desc": "PJ PAYROLL",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000133,
+    "date": "2026-06-30",
+    "type": "in",
+    "name": "ANTONIO CARLOS MENDES JUNIOR",
+    "cat": "PAYROLL",
+    "val": 20250,
+    "desc": "COMMERCIAL COMISSIONS - DRONE SALES",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000134,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "NEW SDR - JÉSSICA",
+    "cat": "PAYROLL",
+    "val": 3000,
+    "desc": "PJ PAYROLL",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000135,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "PRPF SERVICOS INTERNACIONAIS LTDA",
+    "cat": "PAYROLL",
+    "val": 14000,
+    "desc": "PJ PAYROLL",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000136,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "60.495.225 ALEX FLORIANO RODRIGUES DA SILVA",
+    "cat": "PAYROLL",
+    "val": 14000,
+    "desc": "PJ PAYROLL",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000137,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "FERREIRA DE ALMEIDA CONSULTORIA LTDA",
+    "cat": "PAYROLL",
+    "val": 20000,
+    "desc": "PJ PAYROLL",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000138,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "PAULA RODRIGUES PEREIRA FAVERI",
+    "cat": "REEIMBURSEMENT",
+    "val": 1554,
+    "desc": "HEALTH & CARE - REIMBURSEMENT - UNIMED - JUN/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000139,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "GIOVANE SILVA",
+    "cat": "REEIMBURSEMENT",
+    "val": 388.5,
+    "desc": "HEALTH & CARE - REIMBURSEMENT - UNIMED - MAY/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000140,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "LUIS FERREIRA DE ALMEIDA",
+    "cat": "REEIMBURSEMENT",
+    "val": 388.5,
+    "desc": "HEALTH & CARE - REIMBURSEMENT - UNIMED - JUN/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000141,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "OMIEXPERIENCE S.A.",
+    "cat": "PENDING ITEMS",
+    "val": 820.25,
+    "desc": "ERP SYSTEM",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000142,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "UNIMED DE RIBEIRAO PRETO COOPERATIVA DE TRABALHO MEDICO",
+    "cat": "PENDING ITEMS",
+    "val": 10840.4,
+    "desc": "HEALTH PLAN - MAY/26",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000143,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "DANIEL DOS SANTOS ALVES",
+    "cat": "AGREEMENT",
+    "val": 2541.6666666666665,
+    "desc": "WEBSITE MAINTENANCE",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000144,
+    "date": "2026-06-30",
+    "type": "out",
+    "name": "MPS PUBLICIDADE",
+    "cat": "AGREEMENT",
+    "val": 2750,
+    "desc": "MKT AGENCY - TERMINATION DEAL",
+    "cert": "high"
+  },
+  {
+    "id": 1700000000145,
+    "date": "2026-06-30",
+    "type": "in",
+    "name": "SANTAGRO LIMITED",
+    "cat": "RECEIVABLES",
+    "val": 10842.0345,
+    "desc": "EAV2026-006 (TANZÃNIA) - SPARE PARTS",
+    "cert": "high"
+  }
+];
+let banks = [
+  {name:'Bradesco', val:3834.2597199982724}
+];
+let initialBalance = {date:'2026-05-29', val:3834.2597199982724};
+let reconciliations = {}; // {dateStr: realValue}
+let currentMonth = new Date(2026, 5, 1); // Junho/2026
+let dailyOffset = 0;
+let editingBank = null;
+let reconcilingDate = null;
+
+// ===== HELPERS =====
+const fmt = v => {
+  const n = parseFloat(v) || 0;
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  return sign + 'R$ ' + abs.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+};
+const fmtCompact = v => {
+  const n = parseFloat(v) || 0;
+  const abs = Math.abs(n);
+  if (abs >= 1000000) return (n<0?'-':'') + 'R$ ' + (abs/1000000).toFixed(1).replace('.',',') + 'M';
+  if (abs >= 1000) return (n<0?'-':'') + 'R$ ' + (abs/1000).toFixed(1).replace('.',',') + 'k';
+  return fmt(n);
+};
+const dateKey = d => d.toISOString().slice(0,10);
+const parseDate = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+const today = new Date(); today.setHours(0,0,0,0);
+
+// ===== STORAGE =====
+function save(){
+  try {
+    const data = {entries, banks, initialBalance, reconciliations};
+    localStorage.setItem('cashflow_v3', JSON.stringify(data));
+  } catch(e) { console.warn('Save failed:', e); }
+}
+function load(){
+  try {
+    const raw = localStorage.getItem('cashflow_v3');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data.entries) entries = data.entries;
+    if (data.banks) banks = data.banks;
+    if (data.initialBalance) initialBalance = data.initialBalance;
+    if (data.reconciliations) reconciliations = data.reconciliations;
+  } catch(e) { console.warn('Load failed:', e); }
+}
+
+function showFeedback(msg, type='info'){
+  const el = document.getElementById('importFeedback');
+  const colors = {
+    success: {bg:'rgba(93,202,165,0.18)', border:'#5DCAA5', color:'#fff'},
+    error:   {bg:'rgba(240,149,149,0.18)', border:'#F09595', color:'#fff'},
+    info:    {bg:'rgba(55,138,221,0.18)', border:'#378ADD', color:'#fff'}
+  };
+  const c = colors[type];
+  el.style.cssText = `display:block;position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9000;
+    padding:14px 22px;border-radius:10px;font-size:13px;
+    background:${c.bg};border:1px solid ${c.border};color:${c.color};
+    backdrop-filter:blur(8px);
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);
+    max-width:90vw;`;
+  el.innerHTML = msg;
+  if (type === 'success') {
+    setTimeout(() => { el.style.display = 'none'; }, 8000);
+  }
+}
+
+// ===== IMPORTAR PLANILHA XLSX =====
+async function importXlsx(event){
+  const file = event.target.files[0];
+  if (!file) return;
+
+  showFeedback(`<i class="ti ti-loader"></i> Reading spreadsheet <strong>${file.name}</strong>...`, 'info');
+
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array', cellDates:false});
+
+    // Procura a aba do Bradesco
+    const bradescoSheet = wb.SheetNames.find(s =>
+      /bradesco/i.test(s) || s.includes('1.') || s === 'BRADESCO'
+    );
+
+    if (!bradescoSheet) {
+      showFeedback(`<strong>Error:</strong> Could not find the Bradesco sheet. Available sheets: ${wb.SheetNames.join(', ')}`, 'error');
+      event.target.value = '';
+      return;
+    }
+
+    const ws = wb.Sheets[bradescoSheet];
+    // Converte para array de arrays (header:1 mantém estrutura original)
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
+
+    // Parser: replica lógica Python
+    const newEntries = [];
+    let buffer = [];
+    let saldoInicial = null;
+    let saldoFinal = null;
+    let initDate = null;
+    let finishedJune = false;
+
+    // Função para reconhecer "Ending DD/MM/YYYY"
+    const parseEnding = (desc) => {
+      if (typeof desc !== 'string') return null;
+      const m = desc.match(/Ending\s+(\d{2})\/(\d{2})\/(\d{4})/);
+      if (!m) return null;
+      return {iso: `${m[3]}-${m[2]}-${m[1]}`, day: m[1], month: m[2], year: m[3]};
+    };
+
+    let nextId = Date.now();
+    console.log('[Import] Total rows in sheet:', rows.length);
+
+    for (const row of rows) {
+      if (!row || row.length < 5) continue;
+      if (finishedJune) break;
+      const type = row[2];
+      const desc = row[3];
+      const val  = row[4];
+      const summary = row[5];
+
+      const ending = parseEnding(desc);
+
+      if (ending) {
+        if (ending.iso === '2026-05-29' && saldoInicial === null && typeof val === 'number') {
+          saldoInicial = val;
+          initDate = ending.iso;
+        }
+
+        // Atribui buffer à data dessa Ending (apenas se for junho/2026)
+        if (ending.iso.startsWith('2026-06')) {
+          for (const b of buffer) {
+            const bType = b[2];
+            const bDesc = b[3];
+            const bVal  = b[4];
+            const bSum  = b[5];
+
+            if (!bDesc) continue;
+            // BANK RATES sem valor: ignora silenciosamente (taxa zerada)
+            if (bDesc === 'BANK RATES' && (bVal === 0 || bVal === null || bVal === undefined)) continue;
+
+            // Pending (sem valor): inclui com val=0, cert=low
+            if (bVal === null || bVal === undefined || (typeof bVal === 'number' && bVal === 0)) {
+              if (typeof bType !== 'string') continue;
+              const isReceivable = bType.trim().toUpperCase() === 'RECEIVABLES';
+              newEntries.push({
+                id: nextId++,
+                date: ending.iso,
+                type: isReceivable ? 'in' : 'out',
+                name: String(bDesc).trim(),
+                cat: bType ? String(bType).trim() : 'OUTROS',
+                val: 0,
+                desc: bSum ? (String(bSum).trim() + ' (pending — value TBD)') : 'Pending — value TBD',
+                cert: 'low'
+              });
+              continue;
+            }
+
+            if (typeof bVal !== 'number') continue;
+
+            newEntries.push({
+              id: nextId++,
+              date: ending.iso,
+              type: bVal > 0 ? 'in' : 'out',
+              name: String(bDesc).trim(),
+              cat: bType ? String(bType).trim() : 'OUTROS',
+              val: Math.abs(bVal),
+              desc: bSum ? String(bSum).trim() : '',
+              cert: 'high'
+            });
+          }
+
+          // Captura primeiro Ending 30/06 e PARA aqui
+          if (ending.iso === '2026-06-30' && saldoFinal === null && typeof val === 'number') {
+            saldoFinal = val;
+            finishedJune = true;
+          }
+        }
+        buffer = [];
+      } else if (desc) {
+        buffer.push(row);
+      }
+    }
+
+    console.log('[Import] Parsed entries:', newEntries.length, '| Initial:', saldoInicial, '| Final:', saldoFinal);
+
+    if (saldoInicial === null) {
+      showFeedback(`<strong>Warning:</strong> Could not find "Ending 29/05/2026" in the spreadsheet. Keeping current initial balance.`, 'error');
+    }
+
+    if (newEntries.length === 0) {
+      showFeedback(`<strong>Warning:</strong> No June 2026 transactions found.`, 'error');
+      event.target.value = '';
+      return;
+    }
+
+    // Aplica os dados
+    entries = newEntries;
+    if (saldoInicial !== null) {
+      initialBalance = {date: initDate, val: saldoInicial};
+      banks[0] = {name: 'Bradesco', val: saldoInicial};
+    }
+
+    // Mantém apenas reconciliações que ainda fazem sentido (não toca, usuário decide)
+
+    save();
+
+    // Re-renderiza
+    currentMonth = new Date(2026, 5, 1);
+    renderAll();
+
+    // Estatísticas para feedback
+    const totalIn = newEntries.filter(e => e.type === 'in').reduce((a,e) => a + e.val, 0);
+    const totalOut = newEntries.filter(e => e.type === 'out').reduce((a,e) => a + e.val, 0);
+    const net = totalIn - totalOut;
+    const finalCalc = (saldoInicial !== null ? saldoInicial : initialBalance.val) + net;
+    const matchInfo = (saldoFinal !== null)
+      ? ` · Forecasted final balance in spreadsheet: <strong>${fmt(saldoFinal)}</strong> · Calculated in dashboard: <strong>${fmt(finalCalc)}</strong> · Difference: <strong>${fmt(finalCalc - saldoFinal)}</strong>`
+      : '';
+
+    showFeedback(
+      `<i class="ti ti-check"></i> Import complete! ` +
+      `<strong>${newEntries.length}</strong> June 2026 transactions loaded ` +
+      `(${fmtCompact(totalIn)} cash in · ${fmtCompact(totalOut)} cash out · net ${fmtCompact(net)})${matchInfo}`,
+      'success'
+    );
+
+  } catch (err) {
+    console.error(err);
+    showFeedback(`<strong>Error processing spreadsheet:</strong> ${err.message}`, 'error');
+  }
+
+  event.target.value = ''; // Permite reimportar o mesmo arquivo
+}
+
+function resetData(){
+  if (!confirm('Clear all data and restore original June 2026 values?')) return;
+  // Limpa todas as chaves do cashflow (entries, projection, etc.)
+  Object.keys(localStorage).forEach(k => {
+    if (k.startsWith('cashflow_v') || k.startsWith('cashflow_projection_')) {
+      localStorage.removeItem(k);
+    }
+  });
+  location.reload();
+}
+
+// ===== TABS =====
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  event.target.closest('.tab').classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'balances') renderBalances();
+  if (name === 'daily') renderDaily();
+  if (name === 'projection') renderProjection6m();
+}
+
+// ===== MODAL =====
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+
+// ===== ENTRIES =====
+function addEntry(){
+  const type = document.getElementById('fType').value;
+  const name = document.getElementById('fName').value.trim();
+  const cat = document.getElementById('fCat').value.trim() || 'Geral';
+  const val = parseFloat(document.getElementById('fVal').value);
+  const date = document.getElementById('fDate').value;
+  const cert = document.getElementById('fCert').value;
+  const desc = document.getElementById('fDesc').value.trim();
+
+  if (!name || isNaN(val) || val <= 0 || !date) {
+    alert('Please enter name, amount and date correctly.');
+    return;
+  }
+
+  entries.push({id:Date.now(), type, name, cat, val, date, cert, desc});
+  document.getElementById('fName').value = '';
+  document.getElementById('fCat').value = '';
+  document.getElementById('fVal').value = '';
+  document.getElementById('fDesc').value = '';
+  save();
+  renderAll();
+}
+
+function removeEntry(id){
+  if (!confirm('Remove this transaction?')) return;
+  entries = entries.filter(e => e.id !== id);
+  save();
+  renderAll();
+}
+
+// ===== CALENDAR =====
+function navMonth(delta){
+  currentMonth.setMonth(currentMonth.getMonth() + delta);
+  renderTopBalance();
+  renderCalendar();
+  renderBalanceChart();
+  renderTopOut();
+  renderCatDistribution();
+  renderEntryTable();
+}
+
+function renderCalendar(){
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('monthTitle').textContent = monthNames[month] + ' ' + year;
+
+  const firstDay = new Date(year, month, 1);
+  const startDay = firstDay.getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const daysPrev = new Date(year, month, 0).getDate();
+
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+
+  let totalIn = 0, totalOut = 0;
+
+  // Dias do mês anterior (cinza)
+  for (let i = startDay - 1; i >= 0; i--) {
+    const d = document.createElement('div');
+    d.className = 'day outside';
+    d.innerHTML = `<div class="day-num">${daysPrev - i}</div>`;
+    grid.appendChild(d);
+  }
+
+  // Dias do mês atual
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day);
+    const key = dateKey(date);
+    const dayEntries = entries.filter(e => e.date === key);
+
+    const d = document.createElement('div');
+    d.className = 'day';
+    const isToday = date.getTime() === today.getTime();
+    if (isToday) d.classList.add('today');
+
+    let html = `<div class="day-num">${day}${isToday ? '<span class="today-badge">TODAY</span>' : ''}</div>`;
+
+    // Soma totais do dia (para totais do mês)
+    const dayIn = dayEntries.filter(e => e.type === 'in').reduce((a,e) => a + e.val, 0);
+    const dayOut = dayEntries.filter(e => e.type === 'out').reduce((a,e) => a + e.val, 0);
+    totalIn += dayIn;
+    totalOut += dayOut;
+
+    // Estratégia: mostrar lançamentos individuais quando são poucos (até 5).
+    // Quando há muitos (>5), mostra os 2 maiores + linha de resumo "+N more"
+    const HEAVY_DAY_LIMIT = 5;
+
+    if (dayEntries.length === 0) {
+      // dia vazio: nada a mostrar
+    } else if (dayEntries.length <= HEAVY_DAY_LIMIT) {
+      // Dias normais: mostra cada lançamento individualmente (até 5)
+      dayEntries.forEach(e => {
+        const isPending = e.val === 0;
+        const valDisplay = isPending ? 'pending' : fmtCompact(e.val);
+        html += `<div class="entry-tag ${e.type}" title="${e.name} · ${isPending ? 'Pending' : fmt(e.val)} · ${e.cert.toUpperCase()}">
+          <span class="e-name">${e.name}</span>
+          <span class="e-val" ${isPending ? 'style="font-style:italic;color:#FAC775;"' : ''}>${valDisplay}</span>
+        </div>`;
+      });
+    } else {
+      // Dia "pesado" (>5 itens): mostra os 2 maiores + resumo consolidado
+      const sortedByVal = [...dayEntries].sort((a,b) => b.val - a.val);
+      sortedByVal.slice(0, 2).forEach(e => {
+        const isPending = e.val === 0;
+        const valDisplay = isPending ? 'pending' : fmtCompact(e.val);
+        html += `<div class="entry-tag ${e.type}" title="${e.name} · ${isPending ? 'Pending' : fmt(e.val)} · ${e.cert.toUpperCase()}">
+          <span class="e-name">${e.name}</span>
+          <span class="e-val" ${isPending ? 'style="font-style:italic;color:#FAC775;"' : ''}>${valDisplay}</span>
+        </div>`;
+      });
+
+      // Linha de "more": agrupa restante com sinal positivo/negativo do resto
+      const remaining = dayEntries.length - 2;
+      const remainingItems = sortedByVal.slice(2);
+      const remainingIn = remainingItems.filter(e => e.type === 'in').reduce((a,e) => a+e.val, 0);
+      const remainingOut = remainingItems.filter(e => e.type === 'out').reduce((a,e) => a+e.val, 0);
+      const remainingNet = remainingIn - remainingOut;
+      const moreColor = remainingNet >= 0 ? '#5DCAA5' : '#F09595';
+
+      html += `<div style="font-size:9px;color:#85B7EB;text-align:center;padding:2px 4px;background:rgba(24,95,165,0.15);border-radius:4px;margin-top:1px;">
+        +${remaining} more <span style="color:${moreColor};font-weight:600;">${remainingNet >= 0 ? '+' : ''}${fmtCompact(remainingNet)}</span>
+      </div>`;
+    }
+
+    // Saldo final do dia (acumulado, usa computeBalanceAt)
+    const balAtEnd = computeBalanceAt(key);
+    if (balAtEnd !== null) {
+      const cls = balAtEnd >= 0 ? 'pos' : 'neg';
+      html += `<div class="day-saldo ${cls}" title="End-of-day balance">Balance: ${fmtCompact(balAtEnd)}</div>`;
+    } else if (dayEntries.length > 0) {
+      const dayNet = dayIn - dayOut;
+      const cls = dayNet >= 0 ? 'pos' : 'neg';
+      html += `<div class="day-saldo ${cls}">Net: ${fmtCompact(dayNet)}</div>`;
+    }
+
+    d.innerHTML = html;
+    d.onclick = () => openDayModal(key);
+    grid.appendChild(d);
+  }
+
+  // Dias do próximo mês (preencher última linha)
+  const totalCells = startDay + daysInMonth;
+  const remaining = (7 - (totalCells % 7)) % 7;
+  for (let i = 1; i <= remaining; i++) {
+    const d = document.createElement('div');
+    d.className = 'day outside';
+    d.innerHTML = `<div class="day-num">${i}</div>`;
+    grid.appendChild(d);
+  }
+
+  document.getElementById('sumIn').textContent = fmtCompact(totalIn);
+  document.getElementById('sumOut').textContent = fmtCompact(totalOut);
+  const net = totalIn - totalOut;
+  const netEl = document.getElementById('sumNet');
+  netEl.textContent = fmtCompact(net);
+  netEl.style.color = net >= 0 ? '#5DCAA5' : '#F09595';
+}
+
+function renderEntryTable(){
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const monthEntries = entries.filter(e => {
+    const d = parseDate(e.date);
+    return d.getFullYear() === year && d.getMonth() === month;
+  }).sort((a,b) => a.date.localeCompare(b.date));
+
+  const tbody = document.getElementById('entryTable');
+  if (monthEntries.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#85B7EB;padding:30px;">No transactions this month</td></tr>';
+  } else {
+    tbody.innerHTML = monthEntries.map(e => {
+      const [y,m,d] = e.date.split('-');
+      const dateBr = `${d}/${m}`;
+      const certLabel = {high:'High',med:'Med',low:'Low'}[e.cert];
+      const typeIcon = e.type === 'in'
+        ? '<span style="color:#5DCAA5;">↑</span>'
+        : '<span style="color:#F09595;">↓</span>';
+      const isPending = e.val === 0;
+      const valDisplay = isPending
+        ? '<span style="color:#FAC775;font-weight:500;font-style:italic;">Pending</span>'
+        : `${e.type === 'in' ? '+' : '-'}${fmt(e.val)}`;
+      return `<tr ${isPending ? 'style="background:rgba(250,199,117,0.05);"' : ''}>
+        <td>${dateBr}</td>
+        <td style="text-align:center;">${typeIcon}</td>
+        <td><strong style="color:#fff;">${e.name}</strong>${e.desc ? `<div style="font-size:10px;color:#85B7EB;margin-top:2px;">${e.desc}</div>` : ''}</td>
+        <td>${e.cat}</td>
+        <td><span class="cert ${e.cert}">${certLabel}</span></td>
+        <td class="col-val ${e.type}">${valDisplay}</td>
+        <td><button class="btn-del" onclick="removeEntry(${e.id})" title="Remove"><i class="ti ti-trash"></i></button></td>
+      </tr>`;
+    }).join('');
+  }
+  document.getElementById('entryCount').textContent = `${monthEntries.length} transaction${monthEntries.length !== 1 ? 's' : ''}`;
+}
+
+// ===== BANKS =====
+function renderBalances(){
+  const total = banks.reduce((a,b) => a + (b.val || 0), 0);
+  document.getElementById('consTotal').textContent = fmt(total);
+  document.getElementById('consDate').textContent = today.toLocaleDateString('en-US');
+
+  const grid = document.getElementById('bankGrid');
+  if (banks.length === 0) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#85B7EB;padding:30px;font-size:12px;">No banks registered. Click "+ Add bank" to start.</div>';
+  } else {
+    grid.innerHTML = banks.map((b, i) => {
+      const pct = total > 0 ? (b.val / total * 100) : 0;
+      return `<div class="bal-card">
+        <button class="bal-edit" onclick="editBank(${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+        <div class="bal-name">${b.name}</div>
+        <div class="bal-val">${fmt(b.val)}</div>
+        <div class="bal-pct">${pct.toFixed(1)}% do total</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Histórico simplificado: mostra últimos 7 dias de saldo projetado total
+  renderHist();
+}
+
+function renderHist(){
+  const tbody = document.getElementById('histTable');
+  const total = banks.reduce((a,b) => a + (b.val || 0), 0);
+  // Por enquanto, mostra os bancos como linha "hoje"
+  if (banks.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#85B7EB;padding:20px;">No history</td></tr>';
+    return;
+  }
+  const dateBr = today.toLocaleDateString('en-US');
+  tbody.innerHTML = banks.map(b => `<tr>
+    <td>${dateBr}</td>
+    <td><strong style="color:#fff;">${b.name}</strong></td>
+    <td class="col-val">${fmt(b.val)}</td>
+    <td class="col-val" style="color:#85B7EB;">—</td>
+    <td></td>
+  </tr>`).join('') + `<tr style="background:rgba(55,138,221,0.08);">
+    <td>${dateBr}</td>
+    <td><strong style="color:#fff;">Consolidated total</strong></td>
+    <td class="col-val" style="color:#5DCAA5;">${fmt(total)}</td>
+    <td class="col-val" style="color:#85B7EB;">—</td>
+    <td></td>
+  </tr>`;
+}
+
+function addBank(){
+  const name = document.getElementById('bkName').value.trim();
+  const val = parseFloat(document.getElementById('bkVal').value) || 0;
+  if (!name) { alert('Please enter the bank name.'); return; }
+  banks.push({name, val});
+  document.getElementById('bkName').value = '';
+  document.getElementById('bkVal').value = '';
+  closeModal('bankModal');
+  save();
+  renderBalances();
+}
+
+function editBank(i){
+  editingBank = i;
+  document.getElementById('ebName').value = banks[i].name;
+  document.getElementById('ebVal').value = banks[i].val;
+  openModal('editBankModal');
+}
+
+function saveBank(){
+  if (editingBank === null) return;
+  const val = parseFloat(document.getElementById('ebVal').value) || 0;
+  banks[editingBank].val = val;
+  closeModal('editBankModal');
+  editingBank = null;
+  save();
+  renderBalances();
+}
+
+function deleteBank(){
+  if (editingBank === null) return;
+  if (!confirm('Delete this bank?')) return;
+  banks.splice(editingBank, 1);
+  closeModal('editBankModal');
+  editingBank = null;
+  save();
+  renderBalances();
+}
+
+// ===== SALDO DIÁRIO =====
+function setInitial(){
+  const date = document.getElementById('t0Date').value;
+  const val = parseFloat(document.getElementById('t0Val').value);
+  if (!date || isNaN(val)) { alert('Please enter initial date and amount.'); return; }
+  initialBalance = {date, val};
+  save();
+  renderDaily();
+}
+
+function syncT0FromBanks(){
+  const total = banks.reduce((a,b) => a + (b.val || 0), 0);
+  document.getElementById('t0Date').value = dateKey(today);
+  document.getElementById('t0Val').value = total.toFixed(2);
+  initialBalance = {date: dateKey(today), val: total};
+  save();
+  renderDaily();
+}
+
+function computeBalanceAt(targetDate){
+  // Retorna saldo projetado em uma data específica
+  // Regra: usa a reconciliação mais recente <= targetDate, OU initialBalance, e soma os lançamentos a partir daí
+  let baseDate = null, baseVal = 0;
+
+  // Procura reconciliação mais recente <= targetDate
+  const recDates = Object.keys(reconciliations).filter(d => d <= targetDate).sort();
+  if (recDates.length > 0) {
+    baseDate = recDates[recDates.length - 1];
+    baseVal = reconciliations[baseDate];
+  } else if (initialBalance.date && initialBalance.date <= targetDate) {
+    baseDate = initialBalance.date;
+    baseVal = initialBalance.val;
+  } else {
+    return null; // No baseline, não consegue calcular
+  }
+
+  // Soma lançamentos high+med (somente os confirmados/prováveis contam pro projetado)
+  // De baseDate (exclusivo) até targetDate (inclusivo)
+  let delta = 0;
+  entries.forEach(e => {
+    if (e.date > baseDate && e.date <= targetDate) {
+      const weight = e.cert === 'high' ? 1 : e.cert === 'med' ? 0.6 : 0.3;
+      const signed = (e.type === 'in' ? 1 : -1) * e.val * weight;
+      delta += signed;
+    }
+  });
+
+  return baseVal + delta;
+}
+
+function navDaily(delta){
+  dailyOffset += delta;
+  renderDaily();
+}
+
+function renderDaily(){
+  // Preenche inputs com o estado atual
+  if (initialBalance.date) document.getElementById('t0Date').value = initialBalance.date;
+  if (initialBalance.val) document.getElementById('t0Val').value = initialBalance.val.toFixed(2);
+
+  const todayKey = dateKey(today);
+  const todayBal = computeBalanceAt(todayKey);
+  document.getElementById('dailyToday').textContent = todayBal !== null ? fmt(todayBal) : 'Set initial balance';
+  document.getElementById('initBalance').textContent = initialBalance.date ? fmt(initialBalance.val) : '—';
+
+  if (todayBal !== null) {
+    const net = todayBal - initialBalance.val;
+    document.getElementById('netSoFar').textContent = (net >= 0 ? '+' : '') + fmt(net);
+  } else {
+    document.getElementById('netSoFar').textContent = '—';
+  }
+
+  // Renderiza 14 dias centrados em hoje + offset
+  const center = new Date(today);
+  center.setDate(center.getDate() + dailyOffset);
+  const startDate = new Date(center);
+  startDate.setDate(startDate.getDate() - 7);
+
+  const titleEl = document.getElementById('dailyTitle');
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 13);
+  titleEl.textContent = `${startDate.toLocaleDateString('en-US',{month:'short',day:'2-digit'})} — ${endDate.toLocaleDateString('en-US',{month:'short',day:'2-digit'})}`;
+
+  const grid = document.getElementById('dailyGrid');
+  let html = '';
+  let prevBal = null;
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    const key = dateKey(d);
+    const bal = computeBalanceAt(key);
+    const isReconciled = !!reconciliations[key];
+    const isToday = d.getTime() === today.getTime();
+
+    let cls = 'daily-cell';
+    if (isReconciled) cls += ' reconciled';
+    if (isToday) cls += ' today';
+
+    const dateLabel = d.toLocaleDateString('en-US',{weekday:'short',month:'2-digit',day:'2-digit'});
+
+    let balStr = '—';
+    let deltaStr = '';
+    let balCls = '';
+    if (bal !== null) {
+      balStr = fmtCompact(bal);
+      balCls = bal < 0 ? 'neg' : 'pos';
+      if (prevBal !== null) {
+        const delta = bal - prevBal;
+        const deltaCls = delta > 0 ? 'up' : delta < 0 ? 'dn' : '';
+        const arrow = delta > 0 ? '↑' : delta < 0 ? '↓' : '→';
+        if (Math.abs(delta) > 0.01) {
+          deltaStr = `<div class="daily-delta ${deltaCls}">${arrow} ${fmtCompact(Math.abs(delta))}</div>`;
+        }
+      }
+      prevBal = bal;
+    }
+
+    html += `<div class="${cls}" onclick="openReconcile('${key}')">
+      <div class="daily-date">${dateLabel}</div>
+      <div class="daily-saldo ${balCls}">${balStr}</div>
+      ${deltaStr}
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function openReconcile(dateStr){
+  reconcilingDate = dateStr;
+  const [y,m,d] = dateStr.split('-');
+  document.getElementById('rcDate').value = `${d}/${m}/${y}`;
+  const proj = computeBalanceAt(dateStr);
+  document.getElementById('rcProjected').value = proj !== null ? fmt(proj) : 'No baseline de cálculo';
+  document.getElementById('rcReal').value = reconciliations[dateStr] !== undefined ? reconciliations[dateStr] : '';
+  document.getElementById('undoBtn').style.display = reconciliations[dateStr] !== undefined ? 'inline-flex' : 'none';
+  openModal('reconcileModal');
+}
+
+function saveReconcile(){
+  if (!reconcilingDate) return;
+  const val = parseFloat(document.getElementById('rcReal').value);
+  if (isNaN(val)) { alert('Please enter a numeric value.'); return; }
+  reconciliations[reconcilingDate] = val;
+  closeModal('reconcileModal');
+  reconcilingDate = null;
+  save();
+  renderDaily();
+}
+
+function undoReconcile(){
+  if (!reconcilingDate) return;
+  if (!confirm('Remove reconciliation for this day?')) return;
+  delete reconciliations[reconcilingDate];
+  closeModal('reconcileModal');
+  reconcilingDate = null;
+  save();
+  renderDaily();
+}
+
+// ===== GRÁFICOS DO MÊS =====
+let balanceChartObj = null;
+let catChartObj = null;
+
+// Paleta para categorias
+const CAT_COLORS = {
+  'PENDING ITEMS': '#F09595',
+  'PAYROLL': '#A78BFA',
+  'TAXES': '#FAC775',
+  'FORECAST': '#85B7EB',
+  'RECEIVABLES': '#5DCAA5',
+  'REEIMBURSEMENT': '#F5B189',
+  'TRANSFER': '#9CB8D1',
+  'AGREEMENT': '#D4A5E8',
+  'LAWSUIT': '#E27777',
+  'LOANS': '#E8C56D',
+  'OUTROS': '#6B8FB5'
+};
+const getCatColor = (cat) => CAT_COLORS[cat] || '#6B8FB5';
+
+function renderBalanceChart(){
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+
+  const labels = [];
+  const balances = [];
+  const pointColors = [];
+  let minBal = Infinity, maxBal = -Infinity, minDay = null, maxDay = null;
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day);
+    const key = dateKey(date);
+    const bal = computeBalanceAt(key);
+    labels.push(String(day).padStart(2,'0'));
+    if (bal !== null) {
+      balances.push(bal);
+      pointColors.push(bal >= 0 ? '#5DCAA5' : '#F09595');
+      if (bal < minBal) { minBal = bal; minDay = day; }
+      if (bal > maxBal) { maxBal = bal; maxDay = day; }
+    } else {
+      balances.push(null);
+      pointColors.push('#85B7EB');
+    }
+  }
+
+  const sub = document.getElementById('balanceChartSub');
+  if (minDay !== null) {
+    sub.innerHTML = `Worst day: <strong style="color:${minBal<0?'#F09595':'#fff'};">day ${minDay} (${fmtCompact(minBal)})</strong> · Best: <strong style="color:#5DCAA5;">day ${maxDay} (${fmtCompact(maxBal)})</strong>`;
+  } else {
+    sub.textContent = 'No data';
+  }
+
+  if (balanceChartObj) balanceChartObj.destroy();
+  const ctx = document.getElementById('balanceChart').getContext('2d');
+
+  // Gradient para área abaixo da curva
+  const grad = ctx.createLinearGradient(0, 0, 0, 240);
+  grad.addColorStop(0, 'rgba(55,138,221,0.30)');
+  grad.addColorStop(1, 'rgba(55,138,221,0.00)');
+
+  balanceChartObj = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'End-of-day balance',
+        data: balances,
+        borderColor: '#378ADD',
+        backgroundColor: grad,
+        borderWidth: 2,
+        fill: true,
+        tension: 0.25,
+        pointRadius: 3,
+        pointBackgroundColor: pointColors,
+        pointBorderColor: '#021F3E',
+        pointBorderWidth: 1,
+        pointHoverRadius: 6,
+        spanGaps: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(4,44,83,0.95)',
+          titleColor: '#fff',
+          bodyColor: '#B5D4F4',
+          borderColor: '#185FA5',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            title: (items) => `Day ${items[0].label}`,
+            label: (c) => `Balance: ${fmt(c.parsed.y)}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(24,95,165,0.15)' },
+          ticks: { color: '#85B7EB', font: { size: 10 } }
+        },
+        y: {
+          grid: { color: 'rgba(24,95,165,0.15)' },
+          ticks: {
+            color: '#85B7EB',
+            font: { size: 10 },
+            callback: (v) => fmtCompact(v)
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderTopOut(){
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const monthOut = entries.filter(e => {
+    const d = parseDate(e.date);
+    return d.getFullYear() === year && d.getMonth() === month && e.type === 'out';
+  });
+
+  const totalOut = monthOut.reduce((a, e) => a + e.val, 0);
+  document.getElementById('topOutSub').textContent =
+    monthOut.length > 0 ? `${monthOut.length} outflows · ${fmtCompact(totalOut)} total` : 'No outflows';
+
+  const top5 = [...monthOut].sort((a,b) => b.val - a.val).slice(0, 5);
+  const top5Total = top5.reduce((a,e) => a + e.val, 0);
+  const maxVal = top5[0]?.val || 1;
+
+  const container = document.getElementById('topOutList');
+  if (top5.length === 0) {
+    container.innerHTML = '<div style="font-size:12px;color:#85B7EB;padding:20px;text-align:center;">No outflows this month</div>';
+    return;
+  }
+
+  container.innerHTML = top5.map((e, i) => {
+    const widthPct = (e.val / maxVal * 100);
+    const pctOfTotal = totalOut > 0 ? (e.val / totalOut * 100) : 0;
+    const [y,m,d] = e.date.split('-');
+    return `
+      <div style="margin-bottom:${i === top5.length-1 ? 0 : 10}px;padding:10px;background:rgba(4,44,83,0.4);border-radius:8px;border:1px solid rgba(24,95,165,0.3);cursor:pointer;transition:all .15s ease;" onclick="openDayModal('${e.date}')">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px;">
+          <div style="min-width:0;flex:1;">
+            <div style="font-size:12px;color:#fff;font-weight:500;display:flex;align-items:center;gap:6px;">
+              <span style="font-size:10px;color:#85B7EB;font-weight:700;background:rgba(240,149,149,0.15);padding:1px 6px;border-radius:99px;border:1px solid rgba(240,149,149,0.3);">${i+1}</span>
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.name}</span>
+            </div>
+            <div style="font-size:10px;color:#85B7EB;margin-top:2px;">
+              ${d}/${m} · <span style="color:${getCatColor(e.cat)};">${e.cat}</span>
+            </div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div style="font-size:13px;color:#F09595;font-weight:600;">${fmt(e.val)}</div>
+            <div style="font-size:10px;color:#85B7EB;">${pctOfTotal.toFixed(1)}% of month</div>
+          </div>
+        </div>
+        <div style="height:4px;background:rgba(24,95,165,0.3);border-radius:99px;overflow:hidden;">
+          <div style="height:100%;width:${widthPct}%;background:linear-gradient(90deg,#F09595,#E27777);border-radius:99px;"></div>
+        </div>
+      </div>`;
+  }).join('') + `
+    <div style="margin-top:10px;padding-top:10px;border-top:0.5px solid rgba(24,95,165,0.3);font-size:11px;color:#85B7EB;display:flex;justify-content:space-between;">
+      <span>Top 5 represents</span>
+      <span style="color:#fff;font-weight:600;">${(top5Total/totalOut*100).toFixed(1)}% of outflows (${fmtCompact(top5Total)})</span>
+    </div>`;
+}
+
+function renderCatDistribution(){
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const monthOut = entries.filter(e => {
+    const d = parseDate(e.date);
+    return d.getFullYear() === year && d.getMonth() === month && e.type === 'out';
+  });
+
+  const catTotals = {};
+  monthOut.forEach(e => {
+    catTotals[e.cat] = (catTotals[e.cat] || 0) + e.val;
+  });
+
+  const sortedCats = Object.entries(catTotals).sort((a,b) => b[1] - a[1]);
+  const grandTotal = sortedCats.reduce((a, [_,v]) => a + v, 0);
+
+  const labels = sortedCats.map(c => c[0]);
+  const data = sortedCats.map(c => c[1]);
+  const colors = labels.map(getCatColor);
+
+  if (catChartObj) catChartObj.destroy();
+  if (sortedCats.length === 0) {
+    document.getElementById('catLegend').innerHTML = '<div style="color:#85B7EB;font-size:11px;text-align:center;">No data</div>';
+    return;
+  }
+
+  const ctx = document.getElementById('catChart').getContext('2d');
+  catChartObj = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: colors,
+        borderColor: '#021F3E',
+        borderWidth: 2,
+        hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(4,44,83,0.95)',
+          titleColor: '#fff',
+          bodyColor: '#B5D4F4',
+          borderColor: '#185FA5',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            label: (c) => {
+              const pct = (c.parsed / grandTotal * 100).toFixed(1);
+              return `${fmt(c.parsed)} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // Legenda customizada
+  document.getElementById('catLegend').innerHTML = sortedCats.map(([cat, val]) => {
+    const pct = (val / grandTotal * 100);
+    return `<div style="display:grid;grid-template-columns:10px 1fr auto;gap:8px;align-items:center;padding:4px 0;border-bottom:0.5px solid rgba(24,95,165,0.2);">
+      <span style="width:10px;height:10px;border-radius:3px;background:${getCatColor(cat)};display:block;"></span>
+      <span style="color:#E6F1FB;font-size:11px;font-weight:500;">${cat}</span>
+      <span style="text-align:right;">
+        <div style="color:#fff;font-size:11px;font-weight:600;">${fmtCompact(val)}</div>
+        <div style="color:#85B7EB;font-size:9px;">${pct.toFixed(1)}%</div>
+      </span>
+    </div>`;
+  }).join('');
+}
+
+// ===== RENDER ALL =====
+function renderTopBalance(){
+  // Saldo inicial
+  document.getElementById('topInitial').textContent = fmt(initialBalance.val);
+
+  // Saldo atual projetado (hoje)
+  const todayKey = dateKey(today);
+  const currentBal = computeBalanceAt(todayKey);
+  const curEl = document.getElementById('topCurrent');
+  if (currentBal !== null) {
+    curEl.textContent = fmt(currentBal);
+    curEl.style.color = currentBal >= 0 ? '#fff' : '#F09595';
+    const diff = currentBal - initialBalance.val;
+    document.getElementById('topCurrentSub').innerHTML =
+      `<span style="color:${diff>=0?'#5DCAA5':'#F09595'};">${diff>=0?'+':''}${fmtCompact(diff)}</span> vs inicial`;
+  } else {
+    curEl.textContent = '—';
+    document.getElementById('topCurrentSub').textContent = 'No baseline';
+  }
+
+  // Saldo final teorizado: aplica TODOS lançamentos (ponderados) de junho sobre o saldo inicial
+  // Considera apenas lançamentos de junho (mês atualmente visualizado)
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  let totalIn = 0, totalOut = 0, totalNet = 0;
+  entries.forEach(e => {
+    const d = parseDate(e.date);
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      const weight = e.cert === 'high' ? 1 : e.cert === 'med' ? 0.6 : 0.3;
+      if (e.type === 'in') totalIn += e.val;
+      else totalOut += e.val;
+      totalNet += (e.type === 'in' ? 1 : -1) * e.val * weight;
+    }
+  });
+
+  const finalBal = initialBalance.val + totalNet;
+  const finEl = document.getElementById('topFinal');
+  finEl.textContent = fmt(finalBal);
+  finEl.style.color = finalBal >= 0 ? '#fff' : '#F09595';
+  document.getElementById('topFinalSub').textContent =
+    `Includes ${entries.filter(e=>{const d=parseDate(e.date);return d.getFullYear()===year&&d.getMonth()===month;}).length} transactions this month`;
+
+  // Net do mês
+  const netEl = document.getElementById('topNet');
+  const net = totalIn - totalOut;
+  netEl.textContent = fmt(net);
+  netEl.style.color = net >= 0 ? '#5DCAA5' : '#F09595';
+  document.getElementById('topNetSub').textContent =
+    `${fmtCompact(totalIn)} entradas · ${fmtCompact(totalOut)} saídas`;
+}
+
+function renderAll(){
+  renderTopBalance();
+  renderCalendar();
+  renderBalanceChart();
+  renderTopOut();
+  renderCatDistribution();
+  renderEntryTable();
+  renderBalances();
+  renderDaily();
+}
+
+// ===== INIT =====
+function init(){
+  load();
+  document.getElementById('todayLabel').textContent = today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  // Default date para form = hoje
+  document.getElementById('fDate').value = dateKey(today);
+  document.getElementById('t0Date').value = initialBalance.date || dateKey(today);
+  if (initialBalance.val) document.getElementById('t0Val').value = initialBalance.val.toFixed(2);
+
+  // Close modal ao clicar fora
+  document.querySelectorAll('.overlay').forEach(o => {
+    o.addEventListener('click', e => { if (e.target === o) o.classList.remove('show'); });
+  });
+
+  renderAll();
+}
+
+init();
+
+
+// ============================================================
+// 6-MONTH PROJECTION
+// ============================================================
+
+// Estado da projeção: cada item tem {id, name, cat, type, vals: [m1,m2,m3,m4,m5,m6]}
+let projItems = [];
+let projStartBalance = 0;
+let projStartMonth = 6; // 0-indexed: 6 = July
+let projStartYear = 2026;
+const PROJ_MONTHS = 6;
+let projLineChartObj = null;
+let projBarChartObj = null;
+
+// Carrega projeção salva (ou inicializa com recorrentes de junho)
+function loadProjection(){
+  try {
+    const raw = localStorage.getItem('cashflow_projection_v3');
+    if (raw) {
+      const data = JSON.parse(raw);
+      projItems = data.items || [];
+      projStartBalance = data.startBalance || 0;
+      return true;
+    }
+  } catch(e){ console.warn('Failed to load projection:', e); }
+  return false;
+}
+
+function saveProjection(){
+  try {
+    localStorage.setItem('cashflow_projection_v3', JSON.stringify({
+      items: projItems,
+      startBalance: projStartBalance
+    }));
+  } catch(e){ console.warn('Failed to save:', e); }
+}
+
+// Recorrentes pré-identificados do junho/2026
+const JUNE_RECURRING = [{"name": "PAGAMENTO FUNCIONARIOS", "cat": "PAYROLL", "val_jun": 48150.049999999996, "desc": ""}, {"name": "DARF DCTFWEB", "cat": "TAXES", "val_jun": 44818.94, "desc": ""}, {"name": "FERREIRA DE ALMEIDA CONSULTORIA LTDA", "cat": "PAYROLL", "val_jun": 39774.86, "desc": ""}, {"name": "ANTONIO CARLOS MENDES JUNIOR", "cat": "PAYROLL", "val_jun": 15813.17, "desc": ""}, {"name": "PRPF SERVICOS INTERNACIONAIS LTDA", "cat": "PAYROLL", "val_jun": 14000, "desc": ""}, {"name": "60.495.225 ALEX FLORIANO RODRIGUES DA SILVA", "cat": "PAYROLL", "val_jun": 14000, "desc": ""}, {"name": "CAIXA ECONOMICA FEDERAL", "cat": "PAYROLL", "val_jun": 9874.22, "desc": ""}, {"name": "DARF - PARCELAMENTO DCTF WEB (MAI/25 À NOV/25)", "cat": "TAXES", "val_jun": 9271.310625, "desc": ""}, {"name": "GEOSYSTEM SOLUCOES EM AGRICULTURA DE PRECISAO LTDA", "cat": "PAYROLL", "val_jun": 8500, "desc": ""}, {"name": "61.921.616 PEDRO AUGUSTO SERVIDONI BENEDETTI", "cat": "PAYROLL", "val_jun": 6675, "desc": ""}, {"name": "FLASH TECNOLOGIA E INSTITUIÇÃO DE PAGAMENTO LTDA", "cat": "PAYROLL", "val_jun": 6100, "desc": ""}, {"name": "BANCO BRADESCO", "cat": "LOANS", "val_jun": 5413.02, "desc": ""}, {"name": "DAIANE BASTO DE LIMA SILVEIRA RODRIGUES", "cat": "LAWSUIT", "val_jun": 3850, "desc": ""}, {"name": "AUGUSTO SECAROLLI DA SILVEIRA", "cat": "PAYROLL", "val_jun": 3578.1, "desc": ""}, {"name": "NEW SDR - JÉSSICA", "cat": "PAYROLL", "val_jun": 3000, "desc": ""}, {"name": "MPS PUBLICIDADE", "cat": "AGREEMENT", "val_jun": 2750, "desc": ""}, {"name": "DANIEL DOS SANTOS ALVES", "cat": "AGREEMENT", "val_jun": 2541.6666666666665, "desc": ""}, {"name": "TIAGO ALEXANDRE JURADO", "cat": "PAYROLL", "val_jun": 2376.47, "desc": ""}, {"name": "JESSICA RIBEIRO FREIRE", "cat": "PAYROLL", "val_jun": 2206.49, "desc": ""}, {"name": "63.948.294 FELIX DE SOUZA NETO", "cat": "PAYROLL", "val_jun": 1872.5, "desc": ""}, {"name": "PREFEITURA MUNICIPAL DE CRAVINHOS", "cat": "TAXES", "val_jun": 1500, "desc": ""}, {"name": "HUI WANG", "cat": "PAYROLL", "val_jun": 1442.69, "desc": ""}, {"name": "VIVIAN CRISTINA DE ALMEIDA SEVERO", "cat": "PAYROLL", "val_jun": 1323.25, "desc": ""}];
+
+function initProjectionWithRecurring(){
+  // Estimativas aplicadas com base em padrões brasileiros:
+  // - PAYROLL: mantém junho até novembro, dezembro = 1.8x (13º salário)
+  // - TAXES: junho repetido, dezembro = 1.3x (DARF adicional do 13º)
+  // - LOANS / LAWSUIT / AGREEMENT: fixos (parcelas/acordos com valor definido)
+  const getMultipliers = (cat) => {
+    if (cat === 'PAYROLL') return [1, 1, 1, 1, 1, 1.8];
+    if (cat === 'TAXES')   return [1, 1, 1, 1, 1, 1.3];
+    return [1, 1, 1, 1, 1, 1]; // demais ficam fixos
+  };
+
+  projItems = JUNE_RECURRING.map((r, i) => {
+    const mult = getMultipliers(r.cat);
+    return {
+      id: Date.now() + i,
+      name: r.name,
+      cat: r.cat,
+      type: 'out',
+      vals: mult.map(m => Math.round(r.val_jun * m * 100) / 100)
+    };
+  });
+
+  // === PENDING ITEMS recorrentes (estimativas mensais) ===
+  // Itens que apareceram várias vezes em junho ou que são contratos recorrentes
+  const pendingRecurring = [
+    {name:'AURORA TERMINAIS E SERVICOS LTDA', cat:'PENDING ITEMS', monthly:39098.84, label:'Portuária mensal'},
+    {name:'UNIMED DE RIBEIRAO PRETO', cat:'PENDING ITEMS', monthly:21574.59, label:'Plano de saúde'},
+    {name:'ETICA CONTABILIDADE', cat:'PENDING ITEMS', monthly:17036.16, label:'Contabilidade'},
+    {name:'LM TRANSPORTES INTERESTADUAIS', cat:'PENDING ITEMS', monthly:9485.15, label:'Logística'},
+    {name:'BRASIL SALOMAO E MATTHES ADVOCACIA', cat:'PENDING ITEMS', monthly:4129.40, label:'Advocacia'},
+    {name:'CLAUDE AI', cat:'PENDING ITEMS', monthly:3452.75, label:'SaaS'},
+    {name:'INFLEET SOLUCOES EM TECNOLOGIA LTDA', cat:'PENDING ITEMS', monthly:2258.25, label:'SaaS'},
+    {name:'OMIEXPERIENCE S.A.', cat:'PENDING ITEMS', monthly:1129.25, label:'SaaS ERP'},
+    {name:'APOLLO.IO', cat:'PENDING ITEMS', monthly:1021.68, label:'SaaS vendas'},
+  ];
+  pendingRecurring.forEach((p, idx) => {
+    projItems.push({
+      id: Date.now() + 1000 + idx,
+      name: p.name,
+      cat: p.cat,
+      type: 'out',
+      vals: [p.monthly, p.monthly, p.monthly, p.monthly, p.monthly, p.monthly]
+    });
+  });
+
+  // === CASH IN estimado ===
+  // Premissa: receita crescente nos próximos 6 meses, conservadora
+  // Jul: 250k → Dez: 500k (crescimento mensal de ~15%)
+  const salesForecast = [250000, 290000, 340000, 390000, 440000, 500000];
+  projItems.push({
+    id: Date.now() + 2000,
+    name: 'Sales forecast',
+    cat: 'FORECAST',
+    type: 'in',
+    vals: salesForecast
+  });
+
+  // Receivables programados (faturamento histórico)
+  const receivables = [80000, 80000, 90000, 90000, 100000, 100000];
+  projItems.push({
+    id: Date.now() + 2001,
+    name: 'Receivables (existing contracts)',
+    cat: 'RECEIVABLES',
+    type: 'in',
+    vals: receivables
+  });
+
+  // Reembolsos / outros (constante baixo)
+  const reimbursements = [3000, 3000, 3000, 3000, 3000, 3000];
+  projItems.push({
+    id: Date.now() + 2002,
+    name: 'Reimbursements / others',
+    cat: 'RECEIVABLES',
+    type: 'in',
+    vals: reimbursements
+  });
+}
+
+function loadRecurringFromJune(){
+  if (projItems.length > 0) {
+    if (!confirm('This will replace your current projection with June recurring items. Continue?')) return;
+  }
+  initProjectionWithRecurring();
+  saveProjection();
+  renderProjection6m();
+}
+
+function syncStartFromJune(){
+  // Pega o saldo final teorizado de junho
+  const lastDayJune = computeBalanceAt('2026-06-30');
+  if (lastDayJune !== null) {
+    projStartBalance = lastDayJune;
+    document.getElementById('projStartBal').value = projStartBalance.toFixed(2);
+    saveProjection();
+    renderProjection6m();
+  } else {
+    alert('Could not compute June final balance.');
+  }
+}
+
+function addProjRow(type){
+  projItems.push({
+    id: Date.now() + Math.random(),
+    name: type === 'in' ? 'New cash in' : 'New cash out',
+    cat: type === 'in' ? 'RECEIVABLES' : 'OTHERS',
+    type: type,
+    vals: [0,0,0,0,0,0]
+  });
+  saveProjection();
+  renderProjection6m();
+  // Foca no novo input SEM rolar a página
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('.proj-name-input');
+    if (inputs.length > 0) {
+      const last = inputs[inputs.length-1];
+      last.focus({preventScroll: true});
+      last.select();
+    }
+  }, 100);
+}
+
+function removeProjRow(id){
+  if (!confirm('Remove this line?')) return;
+  projItems = projItems.filter(p => p.id !== id);
+  saveProjection();
+  renderProjection6m();
+}
+
+function updateProjItem(id, field, value, monthIdx){
+  const item = projItems.find(p => p.id === id);
+  if (!item) return;
+  if (field === 'name'){ item.name = value; }
+  else if (field === 'cat'){ item.cat = value; }
+  else if (field === 'val'){
+    const num = parseFloat(value) || 0;
+    item.vals[monthIdx] = Math.abs(num);
+  }
+  saveProjection();
+  // Atualiza apenas totais, charts e insights — NÃO re-renderiza a tabela inteira
+  // (isso evita perder o foco do input enquanto o usuário digita)
+  refreshProjectionDerived();
+}
+
+// Atualiza apenas as partes derivadas (totais, gráficos, insights) sem mexer na tabela
+function refreshProjectionDerived(){
+  const labels = getProjMonthLabels();
+  const monthIn = new Array(PROJ_MONTHS).fill(0);
+  const monthOut = new Array(PROJ_MONTHS).fill(0);
+  projItems.forEach(item => {
+    for (let i = 0; i < PROJ_MONTHS; i++){
+      if (item.type === 'in') monthIn[i] += item.vals[i] || 0;
+      else monthOut[i] += item.vals[i] || 0;
+    }
+  });
+  const monthNet = monthIn.map((v, i) => v - monthOut[i]);
+  const monthBalances = [];
+  let running = projStartBalance;
+  for (let i = 0; i < PROJ_MONTHS; i++){
+    running += monthNet[i];
+    monthBalances.push(running);
+  }
+
+  // Atualiza cards de mês
+  const cardsEl = document.getElementById('projMonthCards');
+  if (cardsEl){
+    cardsEl.innerHTML = labels.map((lbl, i) => {
+      const bal = monthBalances[i];
+      const net = monthNet[i];
+      const critical = bal < 0;
+      return `<div class="proj-month-card ${critical ? 'critical' : ''}">
+        <div class="proj-month-name">${lbl}</div>
+        <div class="proj-month-val" style="color:${bal < 0 ? '#F09595' : '#fff'};">${fmtCompact(bal)}</div>
+        <div class="proj-month-net ${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? '+' : ''}${fmtCompact(net)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Atualiza apenas o tfoot (totais) — preserva o tbody com inputs
+  const foot = document.getElementById('projTableFoot');
+  if (foot){
+    const totalIn = monthIn.reduce((a, v) => a + v, 0);
+    const totalOut = monthOut.reduce((a, v) => a + v, 0);
+    const totalNet = totalIn - totalOut;
+    foot.innerHTML = `
+      <tr class="proj-totals-row">
+        <td colspan="2" class="totals-label">Total cash in</td>
+        ${monthIn.map(v => `<td class="col-val" style="color:#5DCAA5;text-align:right;">${fmtCompact(v)}</td>`).join('')}
+        <td class="col-val" style="color:#5DCAA5;text-align:right;">${fmtCompact(totalIn)}</td>
+        <td></td>
+      </tr>
+      <tr class="proj-totals-row">
+        <td colspan="2" class="totals-label">Total cash out</td>
+        ${monthOut.map(v => `<td class="col-val" style="color:#F09595;text-align:right;">${fmtCompact(v)}</td>`).join('')}
+        <td class="col-val" style="color:#F09595;text-align:right;">${fmtCompact(totalOut)}</td>
+        <td></td>
+      </tr>
+      <tr class="proj-totals-row net-row">
+        <td colspan="2" class="totals-label">Monthly net</td>
+        ${monthNet.map(v => `<td class="col-val" style="text-align:right;color:${v >= 0 ? '#5DCAA5' : '#F09595'};">${v >= 0 ? '+' : ''}${fmtCompact(v)}</td>`).join('')}
+        <td class="col-val" style="text-align:right;color:${totalNet >= 0 ? '#5DCAA5' : '#F09595'};">${totalNet >= 0 ? '+' : ''}${fmtCompact(totalNet)}</td>
+        <td></td>
+      </tr>
+      <tr class="proj-totals-row bal-row">
+        <td colspan="2" class="totals-label">Closing balance</td>
+        ${monthBalances.map(v => `<td class="col-val" style="text-align:right;color:${v < 0 ? '#F09595' : '#fff'};">${fmtCompact(v)}</td>`).join('')}
+        <td class="col-val" style="text-align:right;color:${monthBalances[PROJ_MONTHS-1] < 0 ? '#F09595' : '#fff'};">${fmtCompact(monthBalances[PROJ_MONTHS-1])}</td>
+        <td></td>
+      </tr>
+    `;
+  }
+
+  // Atualiza linha total individual de cada row na tabela (sem re-criar inputs)
+  projItems.forEach(item => {
+    const tr = document.querySelector(`tr[data-id="${item.id}"]`);
+    if (!tr) return;
+    const totalCell = tr.querySelector('td.col-val');
+    if (totalCell){
+      const total = item.vals.reduce((a, v) => a + (v || 0), 0);
+      totalCell.textContent = fmtCompact(total);
+    }
+  });
+
+  // Atualiza charts e insights
+  updateProjectionCharts(monthIn, monthOut, monthBalances, labels);
+  renderProjectionInsights(monthBalances, monthIn, monthOut, monthNet, labels);
+}
+
+function updateProjectionCharts(monthIn, monthOut, monthBalances, labels){
+  // Line chart
+  const lineData = [projStartBalance, ...monthBalances];
+  const lineLabels = ['Start', ...labels];
+  const minBal = Math.min(...lineData);
+  const maxBal = Math.max(...lineData);
+  const minIdx = lineData.indexOf(minBal);
+  const maxIdx = lineData.indexOf(maxBal);
+
+  const subEl = document.getElementById('projLineSub');
+  if (subEl){
+    subEl.innerHTML = `Lowest: <strong style="color:${minBal < 0 ? '#F09595' : '#fff'};">${lineLabels[minIdx]} (${fmtCompact(minBal)})</strong> · Highest: <strong style="color:#5DCAA5;">${lineLabels[maxIdx]} (${fmtCompact(maxBal)})</strong>`;
+  }
+
+  if (projLineChartObj){
+    projLineChartObj.data.labels = lineLabels;
+    projLineChartObj.data.datasets[0].data = lineData;
+    projLineChartObj.data.datasets[0].pointBackgroundColor = lineData.map(v => v < 0 ? '#F09595' : '#5DCAA5');
+    projLineChartObj.update('none'); // sem animação pra ser instantâneo
+  }
+
+  if (projBarChartObj){
+    projBarChartObj.data.labels = labels;
+    projBarChartObj.data.datasets[0].data = monthIn;
+    projBarChartObj.data.datasets[1].data = monthOut;
+    projBarChartObj.update('none');
+  }
+}
+
+function getProjMonthLabels(){
+  const labels = [];
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  for (let i = 0; i < PROJ_MONTHS; i++){
+    let m = projStartMonth + i;
+    let y = projStartYear;
+    while (m >= 12){ m -= 12; y += 1; }
+    labels.push(`${monthNames[m]} ${y.toString().slice(2)}`);
+  }
+  return labels;
+}
+
+// Renderiza tudo da aba projection
+function renderProjection6m(){
+  // Atualiza saldo inicial do input
+  const inputBal = document.getElementById('projStartBal');
+  if (inputBal && document.activeElement !== inputBal){
+    inputBal.value = projStartBalance.toFixed(2);
+  } else if (inputBal){
+    projStartBalance = parseFloat(inputBal.value) || 0;
+  }
+
+  const labels = getProjMonthLabels();
+
+  // === Calcula totais por mês ===
+  const monthIn = new Array(PROJ_MONTHS).fill(0);
+  const monthOut = new Array(PROJ_MONTHS).fill(0);
+  projItems.forEach(item => {
+    for (let i = 0; i < PROJ_MONTHS; i++){
+      if (item.type === 'in') monthIn[i] += item.vals[i] || 0;
+      else monthOut[i] += item.vals[i] || 0;
+    }
+  });
+  const monthNet = monthIn.map((v, i) => v - monthOut[i]);
+
+  // Saldos acumulados mês a mês
+  const monthBalances = [];
+  let running = projStartBalance;
+  for (let i = 0; i < PROJ_MONTHS; i++){
+    running += monthNet[i];
+    monthBalances.push(running);
+  }
+
+  // === Renderiza cards de mês ===
+  const cardsEl = document.getElementById('projMonthCards');
+  cardsEl.innerHTML = labels.map((lbl, i) => {
+    const bal = monthBalances[i];
+    const net = monthNet[i];
+    const critical = bal < 0;
+    return `<div class="proj-month-card ${critical ? 'critical' : ''}">
+      <div class="proj-month-name">${lbl}</div>
+      <div class="proj-month-val" style="color:${bal < 0 ? '#F09595' : '#fff'};">${fmtCompact(bal)}</div>
+      <div class="proj-month-net ${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? '+' : ''}${fmtCompact(net)}</div>
+    </div>`;
+  }).join('');
+
+  // === Renderiza tabela ===
+  const head = document.getElementById('projTableHead');
+  head.innerHTML = `
+    <th style="width:260px;min-width:240px;">Item</th>
+    <th style="width:110px;">Category</th>
+    ${labels.map(l => `<th class="col-val" style="width:110px;">${l}</th>`).join('')}
+    <th class="col-val" style="width:120px;">Total</th>
+    <th style="width:40px;"></th>
+  `;
+
+  // Agrupa por categoria
+  const byCat = {};
+  projItems.forEach(item => {
+    if (!byCat[item.cat]) byCat[item.cat] = [];
+    byCat[item.cat].push(item);
+  });
+
+  // Ordena categorias: in primeiro, depois out por total
+  const catOrder = Object.keys(byCat).sort((a, b) => {
+    const aItems = byCat[a];
+    const bItems = byCat[b];
+    const aIsIn = aItems.some(i => i.type === 'in');
+    const bIsIn = bItems.some(i => i.type === 'in');
+    if (aIsIn !== bIsIn) return aIsIn ? -1 : 1;
+    const aTotal = aItems.reduce((s, i) => s + i.vals.reduce((a,v) => a+v, 0), 0);
+    const bTotal = bItems.reduce((s, i) => s + i.vals.reduce((a,v) => a+v, 0), 0);
+    return bTotal - aTotal;
+  });
+
+  const body = document.getElementById('projTableBody');
+  if (projItems.length === 0){
+    body.innerHTML = `<tr><td colspan="${PROJ_MONTHS + 4}" style="text-align:center;padding:40px 20px;color:#85B7EB;">
+      <i class="ti ti-database-off" style="font-size:24px;display:block;margin-bottom:8px;opacity:0.5;"></i>
+      No projection items yet. Click "Reload from June" or add new lines manually.
+    </td></tr>`;
+  } else {
+    let html = '';
+    catOrder.forEach(cat => {
+      const items = byCat[cat];
+      const catColor = getCatColor(cat);
+      const typeStr = items[0].type === 'in' ? 'CASH IN' : 'CASH OUT';
+      html += `<tr class="proj-cat-header"><td colspan="${PROJ_MONTHS + 4}">
+        <span class="proj-cat-pill" style="background:${catColor}22;color:${catColor};border:1px solid ${catColor}55;">${cat}</span>
+        <span style="margin-left:8px;color:#85B7EB;font-size:9px;">${typeStr}</span>
+      </td></tr>`;
+      items.forEach(item => {
+        const total = item.vals.reduce((a, v) => a + (v || 0), 0);
+        html += `<tr data-id="${item.id}">
+          <td><input class="proj-name-input" value="${item.name.replace(/"/g, '&quot;')}" oninput="updateProjItem(${item.id}, 'name', this.value)"></td>
+          <td><input class="proj-name-input" value="${item.cat}" oninput="updateProjItem(${item.id}, 'cat', this.value)" style="font-size:10px;color:${catColor};text-transform:uppercase;letter-spacing:.04em;font-weight:500;"></td>
+          ${item.vals.map((v, i) => `
+            <td style="text-align:right;">
+              <input class="proj-val-input ${item.type} ${v === 0 ? 'zero' : ''}" type="number" step="0.01"
+                value="${v.toFixed(2)}"
+                oninput="updateProjItem(${item.id}, 'val', this.value, ${i})">
+            </td>`).join('')}
+          <td class="col-val" style="color:${item.type === 'in' ? '#5DCAA5' : '#F09595'};font-weight:600;">${fmtCompact(total)}</td>
+          <td style="text-align:center;"><button class="proj-row-del" onclick="removeProjRow(${item.id})" title="Remove"><i class="ti ti-trash"></i></button></td>
+        </tr>`;
+      });
+    });
+    body.innerHTML = html;
+  }
+
+  // === Footer com totais ===
+  const foot = document.getElementById('projTableFoot');
+  const totalIn = monthIn.reduce((a, v) => a + v, 0);
+  const totalOut = monthOut.reduce((a, v) => a + v, 0);
+  const totalNet = totalIn - totalOut;
+  foot.innerHTML = `
+    <tr class="proj-totals-row">
+      <td colspan="2" class="totals-label">Total cash in</td>
+      ${monthIn.map(v => `<td class="col-val" style="color:#5DCAA5;text-align:right;">${fmtCompact(v)}</td>`).join('')}
+      <td class="col-val" style="color:#5DCAA5;text-align:right;">${fmtCompact(totalIn)}</td>
+      <td></td>
+    </tr>
+    <tr class="proj-totals-row">
+      <td colspan="2" class="totals-label">Total cash out</td>
+      ${monthOut.map(v => `<td class="col-val" style="color:#F09595;text-align:right;">${fmtCompact(v)}</td>`).join('')}
+      <td class="col-val" style="color:#F09595;text-align:right;">${fmtCompact(totalOut)}</td>
+      <td></td>
+    </tr>
+    <tr class="proj-totals-row net-row">
+      <td colspan="2" class="totals-label">Monthly net</td>
+      ${monthNet.map(v => `<td class="col-val" style="text-align:right;color:${v >= 0 ? '#5DCAA5' : '#F09595'};">${v >= 0 ? '+' : ''}${fmtCompact(v)}</td>`).join('')}
+      <td class="col-val" style="text-align:right;color:${totalNet >= 0 ? '#5DCAA5' : '#F09595'};">${totalNet >= 0 ? '+' : ''}${fmtCompact(totalNet)}</td>
+      <td></td>
+    </tr>
+    <tr class="proj-totals-row bal-row">
+      <td colspan="2" class="totals-label">Closing balance</td>
+      ${monthBalances.map(v => `<td class="col-val" style="text-align:right;color:${v < 0 ? '#F09595' : '#fff'};">${fmtCompact(v)}</td>`).join('')}
+      <td class="col-val" style="text-align:right;color:${monthBalances[PROJ_MONTHS-1] < 0 ? '#F09595' : '#fff'};">${fmtCompact(monthBalances[PROJ_MONTHS-1])}</td>
+      <td></td>
+    </tr>
+  `;
+
+  document.getElementById('projTableSub').textContent =
+    `${projItems.length} line${projItems.length !== 1 ? 's' : ''} · ${labels[0]} → ${labels[PROJ_MONTHS-1]}`;
+
+  // === Line chart: evolução do saldo ===
+  const lineData = [projStartBalance, ...monthBalances];
+  const lineLabels = ['Start', ...labels];
+  const minBal = Math.min(...lineData);
+  const maxBal = Math.max(...lineData);
+  const minIdx = lineData.indexOf(minBal);
+  const maxIdx = lineData.indexOf(maxBal);
+
+  document.getElementById('projLineSub').innerHTML =
+    `Lowest: <strong style="color:${minBal < 0 ? '#F09595' : '#fff'};">${lineLabels[minIdx]} (${fmtCompact(minBal)})</strong> · Highest: <strong style="color:#5DCAA5;">${lineLabels[maxIdx]} (${fmtCompact(maxBal)})</strong>`;
+
+  if (projLineChartObj) projLineChartObj.destroy();
+  const lineCtx = document.getElementById('projLineChart').getContext('2d');
+  const lineGrad = lineCtx.createLinearGradient(0, 0, 0, 240);
+  lineGrad.addColorStop(0, 'rgba(55,138,221,0.30)');
+  lineGrad.addColorStop(1, 'rgba(55,138,221,0.00)');
+
+  projLineChartObj = new Chart(lineCtx, {
+    type: 'line',
+    data: {
+      labels: lineLabels,
+      datasets: [{
+        label: 'Projected balance',
+        data: lineData,
+        borderColor: '#378ADD',
+        backgroundColor: lineGrad,
+        borderWidth: 2.5,
+        fill: true,
+        tension: 0.3,
+        pointRadius: 5,
+        pointBackgroundColor: lineData.map(v => v < 0 ? '#F09595' : '#5DCAA5'),
+        pointBorderColor: '#021F3E',
+        pointBorderWidth: 2,
+        pointHoverRadius: 7,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(4,44,83,0.95)',
+          titleColor: '#fff',
+          bodyColor: '#B5D4F4',
+          borderColor: '#185FA5',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            label: (c) => `Balance: ${fmt(c.parsed.y)}`
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(24,95,165,0.15)' }, ticks: { color: '#85B7EB', font: { size: 10 } } },
+        y: {
+          grid: { color: 'rgba(24,95,165,0.15)' },
+          ticks: { color: '#85B7EB', font: { size: 10 }, callback: (v) => fmtCompact(v) }
+        }
+      }
+    }
+  });
+
+  // === Bar chart: cash in vs cash out por mês ===
+  if (projBarChartObj) projBarChartObj.destroy();
+  const barCtx = document.getElementById('projBarChart').getContext('2d');
+  projBarChartObj = new Chart(barCtx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Cash in',
+          data: monthIn,
+          backgroundColor: 'rgba(93,202,165,0.7)',
+          borderColor: '#5DCAA5',
+          borderWidth: 1,
+          borderRadius: 4,
+        },
+        {
+          label: 'Cash out',
+          data: monthOut,
+          backgroundColor: 'rgba(240,149,149,0.7)',
+          borderColor: '#F09595',
+          borderWidth: 1,
+          borderRadius: 4,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: '#85B7EB', font: { size: 11 }, boxWidth: 12, padding: 10 }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(4,44,83,0.95)',
+          titleColor: '#fff',
+          bodyColor: '#B5D4F4',
+          borderColor: '#185FA5',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            label: (c) => `${c.dataset.label}: ${fmt(c.parsed.y)}`
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(24,95,165,0.15)' }, ticks: { color: '#85B7EB', font: { size: 10 } } },
+        y: {
+          grid: { color: 'rgba(24,95,165,0.15)' },
+          ticks: { color: '#85B7EB', font: { size: 10 }, callback: (v) => fmtCompact(v) }
+        }
+      }
+    }
+  });
+
+  // === Insights ===
+  renderProjectionInsights(monthBalances, monthIn, monthOut, monthNet, labels);
+}
+
+function renderProjectionInsights(balances, ins, outs, nets, labels){
+  const insights = [];
+
+  // 1. Saldo final
+  const finalBal = balances[balances.length-1];
+  if (finalBal >= 0){
+    insights.push({type:'ok', text:`Projection ends with <strong>${fmt(finalBal)}</strong> at ${labels[labels.length-1]}. Operations stay sustainable across the 6-month horizon.`});
+  } else {
+    insights.push({type:'bad', text:`Final balance reaches <strong>${fmt(finalBal)}</strong> by ${labels[labels.length-1]}. Cumulative deficit requires structural review or additional capital injection.`});
+  }
+
+  // 2. Mês que cruza o zero
+  const firstNegativeIdx = balances.findIndex(b => b < 0);
+  if (firstNegativeIdx >= 0){
+    insights.push({type:'bad', text:`Cash position turns negative in <strong>${labels[firstNegativeIdx]}</strong> (closing at ${fmt(balances[firstNegativeIdx])}). Anticipate funding actions before this point.`});
+  } else {
+    insights.push({type:'ok', text:`Cash position remains positive in every projected month.`});
+  }
+
+  // 3. Pior mês operacional
+  const worstNetIdx = nets.indexOf(Math.min(...nets));
+  if (nets[worstNetIdx] < 0){
+    insights.push({type:'warn', text:`<strong>${labels[worstNetIdx]}</strong> is the toughest operational month: net of ${fmt(nets[worstNetIdx])} (cash in ${fmtCompact(ins[worstNetIdx])} vs cash out ${fmtCompact(outs[worstNetIdx])}).`});
+  }
+
+  // 4. Cobertura média
+  const totalIn = ins.reduce((a,v) => a+v, 0);
+  const totalOut = outs.reduce((a,v) => a+v, 0);
+  const coverage = totalOut > 0 ? (totalIn / totalOut) : 0;
+  if (coverage >= 1.2){
+    insights.push({type:'ok', text:`Solid operational coverage: cash in covers ${coverage.toFixed(2)}x the cash out over the period.`});
+  } else if (coverage >= 1){
+    insights.push({type:'warn', text:`Tight coverage: cash in covers only ${coverage.toFixed(2)}x the cash out. Limited margin for unexpected events.`});
+  } else {
+    insights.push({type:'bad', text:`Insufficient coverage: cash in covers only ${coverage.toFixed(2)}x the cash out. Operating at structural deficit.`});
+  }
+
+  // 5. Categorias dominantes
+  const catTotals = {};
+  projItems.forEach(item => {
+    if (item.type === 'out'){
+      const total = item.vals.reduce((a,v) => a+v, 0);
+      catTotals[item.cat] = (catTotals[item.cat] || 0) + total;
+    }
+  });
+  const sortedCats = Object.entries(catTotals).sort((a,b) => b[1]-a[1]);
+  if (sortedCats.length > 0){
+    const [topCat, topVal] = sortedCats[0];
+    const pct = (topVal / totalOut * 100).toFixed(1);
+    insights.push({type:'info', text:`<strong>${topCat}</strong> is the largest cost driver, representing ${pct}% of total outflows (${fmtCompact(topVal)}).`});
+  }
+
+  // 6. Variação maior entre meses (volatilidade)
+  if (nets.length >= 2){
+    const variation = Math.max(...nets) - Math.min(...nets);
+    const avgOut = totalOut / outs.length;
+    if (avgOut > 0 && variation > avgOut * 0.4){
+      insights.push({type:'warn', text:`High month-to-month volatility detected (${fmtCompact(variation)} swing between best and worst month). Consider smoothing operational flows.`});
+    }
+  }
+
+  document.getElementById('projInsights').innerHTML = insights.map(ins => {
+    const icoMap = {ok:'✓', warn:'!', bad:'×', info:'i'};
+    return `<div class="proj-insight ${ins.type}">
+      <div class="proj-insight-ico">${icoMap[ins.type]}</div>
+      <div class="proj-insight-text">${ins.text}</div>
+    </div>`;
+  }).join('');
+}
+
+// Hook do projStartBal input
+document.addEventListener('DOMContentLoaded', () => {
+  const startBalInput = document.getElementById('projStartBal');
+  if (startBalInput){
+    startBalInput.addEventListener('change', () => {
+      projStartBalance = parseFloat(startBalInput.value) || 0;
+      saveProjection();
+      renderProjection6m();
+    });
+  }
+});
+
+// Inicialização da projeção
+if (!loadProjection()){
+  initProjectionWithRecurring();
+  // Aguarda o computeBalanceAt estar pronto antes de pegar o saldo final de junho
+  projStartBalance = -368143.46469071595; // fallback hardcoded da planilha 10/06
+  saveProjection();
+}
+
+</script>
+
+</body>
+</html>
