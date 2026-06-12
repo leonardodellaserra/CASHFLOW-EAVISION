@@ -606,11 +606,12 @@ function logout(){
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <div style="font-size:10px;color:#5DCAA5;background:rgba(93,202,165,0.1);border:1px solid rgba(93,202,165,0.3);padding:4px 10px;border-radius:99px;font-weight:600;letter-spacing:.04em;" title="Last update">
-      <i class="ti ti-refresh"></i> v18 · Jun 11, 2026
+      <i class="ti ti-refresh"></i> v19 · Jun 12, 2026
     </div>
     <div style="font-size:12px;color:#85B7EB;" id="todayLabel"></div>
     <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm" style="display:none;" onchange="importXlsx(event)">
     <button class="btn-pri" onclick="document.getElementById('fileInput').click();" title="Import Bradesco .xlsx spreadsheet"><i class="ti ti-file-spreadsheet"></i> Import spreadsheet</button>
+    <button class="btn-pri" onclick="exportUpdatedHtml()" title="Download index.html with all current data embedded — ready to upload to GitHub" style="background:linear-gradient(180deg,#3D9970 0%,#2E7D5B 100%);border-color:#5DCAA5;"><i class="ti ti-download"></i> Download updated HTML</button>
     <button class="btn-ghost" onclick="resetData()" title="Restore original data"><i class="ti ti-refresh"></i> Reset</button>
     <button class="btn-ghost" onclick="logout()" title="Sign out"><i class="ti ti-logout"></i> Sign out</button>
   </div>
@@ -3845,6 +3846,9 @@ let projLineChartObj = null;
 let projBarChartObj = null;
 
 // Carrega projeção salva (ou inicializa com recorrentes de junho)
+// Seed da projeção embutido pelo botão "Download updated HTML" (null = usa defaults)
+const EMBEDDED_PROJECTION = null; // @embedded-projection
+
 // === SALES MIX (3 service lines: units × avg ticket) ===
 let salesMix = {
   drone: {label:'Drone sales',        ticket:95000, qty:[1,1,2,2,3,3]},
@@ -3860,6 +3864,13 @@ function loadProjection(){
       projItems = data.items || [];
       projStartBalance = data.startBalance || 0;
       if (data.salesMix) salesMix = data.salesMix;
+      return true;
+    }
+    // Sem dados locais: usa o seed embutido no arquivo (gerado pelo export)
+    if (EMBEDDED_PROJECTION && EMBEDDED_PROJECTION.items){
+      projItems = EMBEDDED_PROJECTION.items;
+      projStartBalance = EMBEDDED_PROJECTION.startBalance || 0;
+      if (EMBEDDED_PROJECTION.salesMix) salesMix = EMBEDDED_PROJECTION.salesMix;
       return true;
     }
   } catch(e){ console.warn('Failed to load projection:', e); }
@@ -4806,6 +4817,63 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Inicialização da projeção
+
+// ============================================================
+// DOWNLOAD UPDATED HTML — embute o estado atual no arquivo
+// ============================================================
+async function exportUpdatedHtml(){
+  let src;
+  try {
+    const resp = await fetch(location.href, {cache:'no-store'});
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    src = await resp.text();
+  } catch(e){
+    alert('Could not read the source file.\n\nThis button works when the dashboard is opened via a web address (your GitHub Pages link).\n\nOpen the published link, redo your changes there (or just import the latest spreadsheet), then click this button again.');
+    return;
+  }
+
+  try {
+    // 1) Dados do calendário/saldos (substitui blocos embutidos — primeira ocorrência = declaração real)
+    src = src.replace(/let entries = \[[\s\S]*?\n\];/, 'let entries = ' + JSON.stringify(entries, null, 2) + ';');
+    src = src.replace(/let banks = \[[\s\S]*?\];/, 'let banks = ' + JSON.stringify(banks) + ';');
+    src = src.replace(/let initialBalance = \{[\s\S]*?\};/, 'let initialBalance = ' + JSON.stringify(initialBalance) + ';');
+    src = src.replace(/let reconciliations = \{[\s\S]*?\};/, 'let reconciliations = ' + JSON.stringify(reconciliations) + ';');
+
+    // 2) Estado da projeção (seed embutido)
+    const projSeed = JSON.stringify({items: projItems, startBalance: projStartBalance, salesMix: salesMix});
+    src = src.replace(/const EMBEDDED_PROJECTION = .*?; \/\/ @embedded-projection/,
+      'const EMBEDDED_PROJECTION = ' + projSeed + '; // @embedded-projection');
+
+    // 3) Badge: incrementa versão e atualiza data
+    const m = src.match(/v(\d+) · [A-Z][a-z]{2} \d{1,2}, \d{4}/);
+    let newVersionLabel = '';
+    if (m){
+      const newV = parseInt(m[1]) + 1;
+      const now = new Date();
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      newVersionLabel = 'v' + newV + ' · ' + months[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
+      src = src.replace(m[0], newVersionLabel);
+    }
+
+    // 4) Gera o download
+    const blob = new Blob([src], {type: 'text/html'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'index.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+
+    showFeedback('<i class="ti ti-check"></i> <strong>index.html downloaded!</strong> It contains all your current data' +
+      (newVersionLabel ? ' · new badge: <strong>' + newVersionLabel + '</strong>' : '') +
+      '. Upload it to GitHub (Add file → Upload files → Commit).', 'success');
+  } catch(err){
+    console.error('[Export]', err);
+    showFeedback('<strong>Export error:</strong> ' + err.message, 'error');
+  }
+}
+
 if (loadProjection()){
   // Garante que as linhas do mix reflitam o plano salvo (cenário inicial = Base)
   syncSalesMixToProj();
