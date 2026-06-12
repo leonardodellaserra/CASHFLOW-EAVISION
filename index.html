@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cashflow · Calendar and Balances</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -601,6 +605,9 @@ function logout(){
     <p>Calendar of cash in and cash out · consolidated and per-bank balances</p>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
+    <div style="font-size:10px;color:#5DCAA5;background:rgba(93,202,165,0.1);border:1px solid rgba(93,202,165,0.3);padding:4px 10px;border-radius:99px;font-weight:600;letter-spacing:.04em;" title="Last update">
+      <i class="ti ti-refresh"></i> v18 · Jun 11, 2026
+    </div>
     <div style="font-size:12px;color:#85B7EB;" id="todayLabel"></div>
     <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm" style="display:none;" onchange="importXlsx(event)">
     <button class="btn-pri" onclick="document.getElementById('fileInput').click();" title="Import Bradesco .xlsx spreadsheet"><i class="ti ti-file-spreadsheet"></i> Import spreadsheet</button>
@@ -873,6 +880,36 @@ function logout(){
 <div class="tab-content" id="tab-projection">
 
 <!-- Top: 6 monthly cards -->
+<!-- BOARD HERO: 3 números que contam a história -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">
+  <div class="cons-card" style="margin-bottom:0;padding:18px;">
+    <div class="cons-lbl">Starting position · Jul 1</div>
+    <div class="cons-val" id="heroStart" style="font-size:28px;">—</div>
+    <div class="cons-sub">Carried over from June</div>
+  </div>
+  <div class="cons-card" style="margin-bottom:0;padding:18px;">
+    <div class="cons-lbl">Cash break-even</div>
+    <div class="cons-val" id="heroBreakeven" style="font-size:28px;">—</div>
+    <div class="cons-sub" id="heroBreakevenSub">Month balance turns positive</div>
+  </div>
+  <div class="cons-card" style="margin-bottom:0;padding:18px;">
+    <div class="cons-lbl">Closing position · Dec 31</div>
+    <div class="cons-val" id="heroEnd" style="font-size:28px;">—</div>
+    <div class="cons-sub" id="heroEndSub">6-month cumulative net</div>
+  </div>
+</div>
+
+<!-- SCENARIO SELECTOR -->
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+  <span style="font-size:11px;color:#85B7EB;text-transform:uppercase;letter-spacing:.07em;font-weight:500;">Scenario:</span>
+  <div class="tabs" style="margin-bottom:0;width:fit-content;">
+    <button class="tab" id="scenCons" onclick="setScenario(0.7, this)">Conservative −30%</button>
+    <button class="tab active" id="scenBase" onclick="setScenario(1.0, this)">Base case</button>
+    <button class="tab" id="scenOpt" onclick="setScenario(1.3, this)">Optimistic +30%</button>
+  </div>
+  <span style="font-size:11px;color:#85B7EB;">Applies to FORECAST lines only · contracted receivables stay fixed</span>
+</div>
+
 <div class="sec-lbl" style="font-size:10px;font-weight:500;color:#378ADD;text-transform:uppercase;letter-spacing:.07em;margin:0 0 10px;">Forecasted closing balance · per month</div>
 <div id="projMonthCards" style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:18px;"></div>
 
@@ -896,6 +933,33 @@ function logout(){
       <canvas id="projBarChart"></canvas>
     </div>
   </div>
+</div>
+
+<!-- SALES MIX PLANNER -->
+<div class="card">
+  <div class="card-hd">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span>Sales mix planner</span>
+      <span style="font-size:11px;color:#85B7EB;font-weight:400;">Plan in units · revenue feeds the projection automatically</span>
+    </div>
+  </div>
+
+  <div style="overflow-x:auto;">
+    <table class="tbl" style="min-width:900px;">
+      <thead>
+        <tr id="mixTableHead"></tr>
+      </thead>
+      <tbody id="mixTableBody"></tbody>
+      <tfoot id="mixTableFoot"></tfoot>
+    </table>
+  </div>
+
+  <div style="margin-top:10px;font-size:11px;color:#85B7EB;">
+    <i class="ti ti-info-circle"></i> Adjust average ticket and monthly quantities. The three FORECAST revenue lines in the projection table below update automatically. Scenario selector applies on top of this plan.
+  </div>
+
+  <!-- BREAK-EVEN CALCULATOR -->
+  <div id="breakevenCalc" style="margin-top:14px;"></div>
 </div>
 
 <!-- Editable table -->
@@ -3781,13 +3845,21 @@ let projLineChartObj = null;
 let projBarChartObj = null;
 
 // Carrega projeção salva (ou inicializa com recorrentes de junho)
+// === SALES MIX (3 service lines: units × avg ticket) ===
+let salesMix = {
+  drone: {label:'Drone sales',        ticket:95000, qty:[1,1,2,2,3,3]},
+  spray: {label:'Spraying services',  ticket:60000, qty:[2,2,3,3,4,4]},
+  maint: {label:'Maintenance',        ticket:7000,  qty:[3,3,4,4,5,5]}
+};
+
 function loadProjection(){
   try {
-    const raw = localStorage.getItem('cashflow_projection_v3');
+    const raw = localStorage.getItem('cashflow_projection_v5');
     if (raw) {
       const data = JSON.parse(raw);
       projItems = data.items || [];
       projStartBalance = data.startBalance || 0;
+      if (data.salesMix) salesMix = data.salesMix;
       return true;
     }
   } catch(e){ console.warn('Failed to load projection:', e); }
@@ -3796,11 +3868,246 @@ function loadProjection(){
 
 function saveProjection(){
   try {
-    localStorage.setItem('cashflow_projection_v3', JSON.stringify({
+    localStorage.setItem('cashflow_projection_v5', JSON.stringify({
       items: projItems,
-      startBalance: projStartBalance
+      startBalance: projStartBalance,
+      salesMix: salesMix
     }));
   } catch(e){ console.warn('Failed to save:', e); }
+}
+
+// Sincroniza o planner → 3 linhas FORECAST na projeção (substitui linhas antigas)
+const MIX_IDS = {drone:'mix_drone', spray:'mix_spray', maint:'mix_maint'};
+
+function syncSalesMixToProj(){
+  // Remove linhas geradas pelo mix e o antigo 'Sales forecast' único
+  projItems = projItems.filter(p =>
+    p.id !== MIX_IDS.drone && p.id !== MIX_IDS.spray && p.id !== MIX_IDS.maint &&
+    p.name !== 'Sales forecast'
+  );
+  // Insere as 3 linhas calculadas no TOPO (quantidades do CENÁRIO ativo)
+  const lines = ['drone','spray','maint'].map(k => {
+    const qtys = salesMix[k].qty.map((_, i) => scenarioQty(k, i));
+    const totalUn = qtys.reduce((a,v)=>a+v,0);
+    return {
+      id: MIX_IDS[k],
+      name: salesMix[k].label + ' (' + totalUn + ' un.)',
+      cat: 'FORECAST',
+      type: 'in',
+      vals: qtys.map(q => q * (parseFloat(salesMix[k].ticket)||0))
+    };
+  });
+  projItems = [...lines, ...projItems];
+}
+
+function updateMix(service, field, value, monthIdx){
+  if (field === 'ticket'){
+    salesMix[service].ticket = parseFloat(value) || 0;
+  } else {
+    salesMix[service].qty[monthIdx] = parseInt(value) || 0;
+  }
+  syncSalesMixToProj();
+  saveProjection();
+  refreshMixDerived();
+}
+
+// Atualiza totais do planner + projeção derivada SEM re-renderizar inputs (preserva foco)
+function refreshMixDerived(){
+  renderMixFooter();
+  refreshProjectionDerived();
+  renderProjTableOnly();
+}
+
+// Atualiza incrementalmente as células das linhas do mix na tabela de projeção
+// (sem re-renderizar nada — preserva o foco do input do planner)
+function renderProjTableOnly(){
+  // Se alguma linha do mix ainda não existe na tabela, re-render completo uma vez
+  const missing = Object.values(MIX_IDS).some(id =>
+    projItems.find(p => p.id === id) && !document.querySelector(`tr[data-id="${id}"]`)
+  );
+  if (missing){ renderProjection6m(); return; }
+
+  Object.values(MIX_IDS).forEach(id => {
+    const item = projItems.find(p => p.id === id);
+    if (!item) return;
+    const tr = document.querySelector(`tr[data-id="${id}"]`);
+    if (!tr) return;
+    // Atualiza nome (contém contagem de unidades)
+    const nameInput = tr.querySelector('.proj-name-input');
+    if (nameInput && document.activeElement !== nameInput) nameInput.value = item.name;
+    // Atualiza os 6 inputs de valor
+    const valInputs = tr.querySelectorAll('input.proj-val-input');
+    item.vals.forEach((v, i) => {
+      if (valInputs[i] && document.activeElement !== valInputs[i]) valInputs[i].value = v.toFixed(2);
+    });
+    // Atualiza total da linha
+    const totalCell = tr.querySelector('td.col-val');
+    if (totalCell){
+      const total = item.vals.reduce((a, v) => a + (v || 0), 0);
+      totalCell.textContent = fmtCompact(total);
+    }
+  });
+}
+
+function renderMixFooter(){
+  const foot = document.getElementById('mixTableFoot');
+  if (!foot) return;
+  const monthRev = [0,0,0,0,0,0];
+  Object.keys(salesMix).forEach(k => {
+    salesMix[k].qty.forEach((_, i) => {
+      monthRev[i] += scenarioQty(k, i) * (parseFloat(salesMix[k].ticket)||0);
+    });
+  });
+  const total = monthRev.reduce((a,v)=>a+v,0);
+  foot.innerHTML = `<tr class="proj-totals-row net-row">
+    <td colspan="2" class="totals-label">Planned revenue</td>
+    ${monthRev.map(v => `<td class="col-val" style="text-align:right;color:#5DCAA5;">${fmtCompact(v)}</td>`).join('')}
+    <td class="col-val" style="text-align:right;color:#5DCAA5;font-size:12px;">${fmtCompact(total)}</td>
+  </tr>`;
+}
+
+function renderSalesMix(){
+  const head = document.getElementById('mixTableHead');
+  const body = document.getElementById('mixTableBody');
+  if (!head || !body) return;
+  const labels = getProjMonthLabels();
+
+  head.innerHTML = `
+    <th style="width:180px;">Service</th>
+    <th style="width:120px;" class="col-val">Avg ticket (R$)</th>
+    ${labels.map(l => `<th class="col-val" style="width:80px;">${l} (qty)</th>`).join('')}
+    <th class="col-val" style="width:110px;">Revenue 6m</th>
+  `;
+
+  const icons = {drone:'ti-drone', spray:'ti-droplet', maint:'ti-tool'};
+  const colors = {drone:'#378ADD', spray:'#5DCAA5', maint:'#FAC775'};
+
+  const isBase = scenarioMult === 1.0;
+  body.innerHTML = Object.keys(salesMix).map(k => {
+    const s = salesMix[k];
+    const qtys = s.qty.map((_, i) => scenarioQty(k, i));
+    const rev = qtys.reduce((a,q)=>a+q*(parseFloat(s.ticket)||0),0);
+    return `<tr>
+      <td><span style="color:${colors[k]};font-weight:600;font-size:12px;"><i class="ti ${icons[k]}"></i> ${s.label}</span></td>
+      <td style="text-align:right;">
+        <input class="proj-val-input" type="number" step="1000" min="0" value="${s.ticket}"
+          style="max-width:110px;color:${colors[k]};font-weight:600;${isBase ? '' : 'opacity:0.55;'}"
+          ${isBase ? '' : 'disabled title="Switch to Base case to edit the plan"'}
+          oninput="updateMix('${k}','ticket',this.value)">
+      </td>
+      ${qtys.map((q, i) => `
+        <td style="text-align:right;">
+          <input class="proj-val-input" type="number" step="1" min="0" value="${q}"
+            style="max-width:60px;${isBase ? '' : 'opacity:0.55;'}"
+            ${isBase ? '' : 'disabled title="Derived from Base plan — switch to Base case to edit"'}
+            oninput="updateMix('${k}','qty',this.value,${i})">
+        </td>`).join('')}
+      <td class="col-val" style="color:${colors[k]};font-weight:600;">${fmtCompact(rev)}</td>
+    </tr>`;
+  }).join('');
+
+  // Aviso quando cenário ≠ base
+  const hintId = 'mixScenarioHint';
+  let hint = document.getElementById(hintId);
+  if (!isBase){
+    const txt = scenarioMult < 1
+      ? '<i class="ti ti-lock"></i> Conservative scenario: quantities derived from Base plan (×0.7, rounded). Switch to Base case to edit.'
+      : '<i class="ti ti-lock"></i> Optimistic scenario: quantities derived from Base plan (×1.3, rounded). Switch to Base case to edit.';
+    if (!hint){
+      hint = document.createElement('div');
+      hint.id = hintId;
+      hint.style.cssText = 'margin-top:8px;font-size:11px;color:#FAC775;padding:8px 12px;background:rgba(250,199,117,0.08);border:1px solid rgba(250,199,117,0.25);border-radius:8px;';
+      const tbl = document.getElementById('mixTableBody').closest('div');
+      tbl.parentNode.insertBefore(hint, tbl.nextSibling);
+    }
+    hint.innerHTML = txt;
+    hint.style.display = '';
+  } else if (hint){
+    hint.style.display = 'none';
+  }
+
+  renderMixFooter();
+}
+
+// === BREAK-EVEN CALCULATOR ===
+function renderBreakevenCalc(){
+  const el = document.getElementById('breakevenCalc');
+  if (!el) return;
+
+  // Saídas e entradas fixas (não-FORECAST) dos projItems
+  let totalOut = 0, fixedIn = 0, mixRevenue = 0;
+  projItems.forEach(item => {
+    for (let i = 0; i < PROJ_MONTHS; i++){
+      const v = item.vals[i] || 0;
+      if (item.type === 'out') totalOut += v;
+      else if (item.cat === 'FORECAST') mixRevenue += v; // sem multiplicador: plano base
+      else fixedIn += v;
+    }
+  });
+
+  // Receita necessária pra fechar dezembro em zero
+  const revenueNeeded = -projStartBalance + totalOut - fixedIn;
+  const gap = revenueNeeded - mixRevenue;
+  const covered = revenueNeeded > 0 ? Math.min(100, (mixRevenue / revenueNeeded * 100)) : 100;
+
+  const tDrone = parseFloat(salesMix.drone.ticket) || 95000;
+  const tSpray = parseFloat(salesMix.spray.ticket) || 60000;
+  const tMaint = parseFloat(salesMix.maint.ticket) || 7000;
+
+  let gapHtml = '';
+  if (gap > 0){
+    gapHtml = `
+      <div style="font-size:12px;color:#F5BABA;margin-bottom:8px;">
+        <strong style="color:#F09595;">Gap to break even: ${fmt(gap)}</strong> — equivalent to ONE of:
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <div style="padding:8px 14px;background:rgba(55,138,221,0.12);border:1px solid rgba(55,138,221,0.35);border-radius:8px;font-size:12px;">
+          <i class="ti ti-drone" style="color:#378ADD;"></i> <strong style="color:#fff;">${Math.ceil(gap / tDrone)}</strong> more drone sales
+        </div>
+        <div style="padding:8px 14px;background:rgba(93,202,165,0.12);border:1px solid rgba(93,202,165,0.35);border-radius:8px;font-size:12px;">
+          <i class="ti ti-droplet" style="color:#5DCAA5;"></i> <strong style="color:#fff;">${Math.ceil(gap / tSpray)}</strong> more spraying contracts
+        </div>
+        <div style="padding:8px 14px;background:rgba(250,199,117,0.12);border:1px solid rgba(250,199,117,0.35);border-radius:8px;font-size:12px;">
+          <i class="ti ti-tool" style="color:#FAC775;"></i> <strong style="color:#fff;">${Math.ceil(gap / tMaint)}</strong> more maintenance jobs
+        </div>
+      </div>`;
+  } else {
+    gapHtml = `<div style="font-size:12px;color:#A6E0C7;">
+      <i class="ti ti-circle-check" style="color:#5DCAA5;"></i>
+      <strong style="color:#5DCAA5;">Current plan exceeds break-even by ${fmt(-gap)}</strong> — December closes positive if the plan materializes.
+    </div>`;
+  }
+
+  el.innerHTML = `
+    <div style="padding:14px;background:linear-gradient(90deg,rgba(250,199,117,0.10),rgba(250,199,117,0.02));border:1px solid rgba(250,199,117,0.3);border-radius:10px;">
+      <div style="font-size:10px;color:#FAC775;text-transform:uppercase;letter-spacing:.07em;font-weight:600;margin-bottom:10px;">
+        <i class="ti ti-target-arrow"></i> What it takes to break even (Dec 31 at zero) <span id="beScenarioTag" style="margin-left:6px;color:#85B7EB;font-weight:500;text-transform:none;letter-spacing:0;"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;">
+        <div>
+          <div style="font-size:10px;color:#85B7EB;text-transform:uppercase;letter-spacing:.05em;">Revenue needed (6m)</div>
+          <div style="font-size:18px;font-weight:700;color:#fff;">${fmt(revenueNeeded)}</div>
+          <div style="font-size:10px;color:#85B7EB;">≈ ${fmtCompact(revenueNeeded/6)}/month</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#85B7EB;text-transform:uppercase;letter-spacing:.05em;">Planned revenue (mix)</div>
+          <div style="font-size:18px;font-weight:700;color:${mixRevenue >= revenueNeeded ? '#5DCAA5' : '#FAC775'};">${fmt(mixRevenue)}</div>
+          <div style="font-size:10px;color:#85B7EB;">covers ${covered.toFixed(0)}% of target</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#85B7EB;text-transform:uppercase;letter-spacing:.05em;">Coverage</div>
+          <div style="margin-top:8px;height:10px;background:rgba(0,0,0,0.35);border-radius:99px;overflow:hidden;">
+            <div style="height:100%;width:${covered.toFixed(1)}%;background:linear-gradient(90deg,${covered >= 100 ? '#5DCAA5,#5DCAA5' : '#FAC775,#F09595'});border-radius:99px;"></div>
+          </div>
+        </div>
+      </div>
+      ${gapHtml}
+    </div>`;
+
+  const tag = document.getElementById('beScenarioTag');
+  if (tag){
+    tag.textContent = scenarioMult === 1 ? '· Base case' : (scenarioMult < 1 ? '· Conservative scenario' : '· Optimistic scenario');
+  }
 }
 
 // Recorrentes pré-identificados do junho/2026
@@ -3851,26 +4158,18 @@ function initProjectionWithRecurring(){
     });
   });
 
-  // === CASH IN estimado ===
-  // Premissa: receita crescente nos próximos 6 meses, conservadora
-  // Jul: 250k → Dez: 500k (crescimento mensal de ~15%)
-  const salesForecast = [250000, 290000, 340000, 390000, 440000, 500000];
-  projItems.push({
-    id: Date.now() + 2000,
-    name: 'Sales forecast',
-    cat: 'FORECAST',
-    type: 'in',
-    vals: salesForecast
-  });
+  // === CASH IN ===
+  // Receita de vendas: gerada pelo Sales Mix Planner (3 linhas FORECAST)
+  // — sincronizada via syncSalesMixToProj() no final desta função
 
-  // Receivables programados (faturamento histórico)
-  const receivables = [80000, 80000, 90000, 90000, 100000, 100000];
+  // Recebíveis CONTRATADOS (NF a NF, da aba RECEIVABLES NFs da planilha 11/06)
+  // Jul: RURAL AIR 5.500 + LONGPING NF1863 9.237,69 · Aug-Dec: RURAL AIR 5.500/mês
   projItems.push({
     id: Date.now() + 2001,
-    name: 'Receivables (existing contracts)',
+    name: 'Contracted receivables (issued NFs)',
     cat: 'RECEIVABLES',
     type: 'in',
-    vals: receivables
+    vals: [14737.69, 5500, 5500, 5500, 5500, 5500]
   });
 
   // Reembolsos / outros (constante baixo)
@@ -3882,6 +4181,9 @@ function initProjectionWithRecurring(){
     type: 'in',
     vals: reimbursements
   });
+
+  // Insere as linhas de receita do Sales Mix Planner
+  syncSalesMixToProj();
 }
 
 function loadRecurringFromJune(){
@@ -3929,13 +4231,13 @@ function addProjRow(type){
 
 function removeProjRow(id){
   if (!confirm('Remove this line?')) return;
-  projItems = projItems.filter(p => p.id !== id);
+  projItems = projItems.filter(p => String(p.id) !== String(id));
   saveProjection();
   renderProjection6m();
 }
 
 function updateProjItem(id, field, value, monthIdx){
-  const item = projItems.find(p => p.id === id);
+  const item = projItems.find(p => String(p.id) === String(id));
   if (!item) return;
   if (field === 'name'){ item.name = value; }
   else if (field === 'cat'){ item.cat = value; }
@@ -3956,8 +4258,9 @@ function refreshProjectionDerived(){
   const monthOut = new Array(PROJ_MONTHS).fill(0);
   projItems.forEach(item => {
     for (let i = 0; i < PROJ_MONTHS; i++){
-      if (item.type === 'in') monthIn[i] += item.vals[i] || 0;
-      else monthOut[i] += item.vals[i] || 0;
+      const v = effectiveVal(item, i);
+      if (item.type === 'in') monthIn[i] += v;
+      else monthOut[i] += v;
     }
   });
   const monthNet = monthIn.map((v, i) => v - monthOut[i]);
@@ -3967,6 +4270,8 @@ function refreshProjectionDerived(){
     running += monthNet[i];
     monthBalances.push(running);
   }
+
+  renderProjHero(monthBalances, labels);
 
   // Atualiza cards de mês
   const cardsEl = document.getElementById('projMonthCards');
@@ -4031,6 +4336,7 @@ function refreshProjectionDerived(){
   // Atualiza charts e insights
   updateProjectionCharts(monthIn, monthOut, monthBalances, labels);
   renderProjectionInsights(monthBalances, monthIn, monthOut, monthNet, labels);
+  renderBreakevenCalc();
 }
 
 function updateProjectionCharts(monthIn, monthOut, monthBalances, labels){
@@ -4075,6 +4381,67 @@ function getProjMonthLabels(){
 }
 
 // Renderiza tudo da aba projection
+// === SCENARIO SELECTOR (multiplica linhas FORECAST de cash in) ===
+let scenarioMult = 1.0;
+
+function setScenario(mult, btn){
+  scenarioMult = mult;
+  ['scenCons','scenBase','scenOpt'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.classList.remove('active');
+  });
+  btn.classList.add('active');
+  syncSalesMixToProj();  // recalcula quantidades e valores do mix para o cenário
+  renderProjection6m();
+}
+
+// Valor efetivo do item (o cenário já está refletido nas quantidades do mix via syncSalesMixToProj)
+function effectiveVal(item, i){
+  return item.vals[i] || 0;
+}
+
+// Quantidade do cenário ativo: arredonda o plano base × multiplicador (unidades inteiras)
+function scenarioQty(service, i){
+  const base = parseInt(salesMix[service].qty[i]) || 0;
+  return Math.round(base * scenarioMult);
+}
+
+// === HERO DE 3 NÚMEROS (board view) ===
+function renderProjHero(monthBalances, labels){
+  const startEl = document.getElementById('heroStart');
+  if (!startEl) return;
+  const beEl = document.getElementById('heroBreakeven');
+  const beSubEl = document.getElementById('heroBreakevenSub');
+  const endEl = document.getElementById('heroEnd');
+  const endSubEl = document.getElementById('heroEndSub');
+
+  startEl.textContent = fmt(projStartBalance);
+  startEl.style.color = projStartBalance >= 0 ? '#fff' : '#F09595';
+
+  if (projStartBalance >= 0 && monthBalances.every(b => b >= 0)){
+    beEl.textContent = 'Already positive';
+    beEl.style.color = '#5DCAA5';
+    beSubEl.textContent = 'Position above zero across horizon';
+  } else {
+    const beIdx = monthBalances.findIndex(b => b >= 0);
+    if (beIdx >= 0){
+      beEl.textContent = labels[beIdx];
+      beEl.style.color = '#5DCAA5';
+      beSubEl.textContent = `Closing at ${fmtCompact(monthBalances[beIdx])}`;
+    } else {
+      beEl.textContent = 'Not reached';
+      beEl.style.color = '#F09595';
+      beSubEl.textContent = 'Negative across full 6-month horizon';
+    }
+  }
+
+  const finalBal = monthBalances[monthBalances.length - 1];
+  endEl.textContent = fmt(finalBal);
+  endEl.style.color = finalBal >= 0 ? '#5DCAA5' : '#F09595';
+  const cumNet = finalBal - projStartBalance;
+  endSubEl.innerHTML = `6-month net: <span style="color:${cumNet >= 0 ? '#5DCAA5' : '#F09595'};font-weight:600;">${cumNet >= 0 ? '+' : ''}${fmtCompact(cumNet)}</span>`;
+}
+
 function renderProjection6m(){
   // Atualiza saldo inicial do input
   const inputBal = document.getElementById('projStartBal');
@@ -4091,8 +4458,9 @@ function renderProjection6m(){
   const monthOut = new Array(PROJ_MONTHS).fill(0);
   projItems.forEach(item => {
     for (let i = 0; i < PROJ_MONTHS; i++){
-      if (item.type === 'in') monthIn[i] += item.vals[i] || 0;
-      else monthOut[i] += item.vals[i] || 0;
+      const v = effectiveVal(item, i);
+      if (item.type === 'in') monthIn[i] += v;
+      else monthOut[i] += v;
     }
   });
   const monthNet = monthIn.map((v, i) => v - monthOut[i]);
@@ -4104,6 +4472,8 @@ function renderProjection6m(){
     running += monthNet[i];
     monthBalances.push(running);
   }
+
+  renderProjHero(monthBalances, labels);
 
   // === Renderiza cards de mês ===
   const cardsEl = document.getElementById('projMonthCards');
@@ -4166,16 +4536,16 @@ function renderProjection6m(){
       items.forEach(item => {
         const total = item.vals.reduce((a, v) => a + (v || 0), 0);
         html += `<tr data-id="${item.id}">
-          <td><input class="proj-name-input" value="${item.name.replace(/"/g, '&quot;')}" oninput="updateProjItem(${item.id}, 'name', this.value)"></td>
-          <td><input class="proj-name-input" value="${item.cat}" oninput="updateProjItem(${item.id}, 'cat', this.value)" style="font-size:10px;color:${catColor};text-transform:uppercase;letter-spacing:.04em;font-weight:500;"></td>
+          <td><input class="proj-name-input" value="${item.name.replace(/"/g, '&quot;')}" oninput="updateProjItem('${item.id}', 'name', this.value)"></td>
+          <td><input class="proj-name-input" value="${item.cat}" oninput="updateProjItem('${item.id}', 'cat', this.value)" style="font-size:10px;color:${catColor};text-transform:uppercase;letter-spacing:.04em;font-weight:500;"></td>
           ${item.vals.map((v, i) => `
             <td style="text-align:right;">
               <input class="proj-val-input ${item.type} ${v === 0 ? 'zero' : ''}" type="number" step="0.01"
                 value="${v.toFixed(2)}"
-                oninput="updateProjItem(${item.id}, 'val', this.value, ${i})">
+                oninput="updateProjItem('${item.id}', 'val', this.value, ${i})">
             </td>`).join('')}
           <td class="col-val" style="color:${item.type === 'in' ? '#5DCAA5' : '#F09595'};font-weight:600;">${fmtCompact(total)}</td>
-          <td style="text-align:center;"><button class="proj-row-del" onclick="removeProjRow(${item.id})" title="Remove"><i class="ti ti-trash"></i></button></td>
+          <td style="text-align:center;"><button class="proj-row-del" onclick="removeProjRow('${item.id}')" title="Remove"><i class="ti ti-trash"></i></button></td>
         </tr>`;
       });
     });
@@ -4251,6 +4621,15 @@ function renderProjection6m(){
         pointBorderColor: '#021F3E',
         pointBorderWidth: 2,
         pointHoverRadius: 7,
+      },
+      {
+        label: 'Break-even line',
+        data: lineData.map(() => 0),
+        borderColor: 'rgba(250,199,117,0.6)',
+        borderWidth: 1.5,
+        borderDash: [6, 4],
+        pointRadius: 0,
+        fill: false,
       }]
     },
     options: {
@@ -4338,6 +4717,10 @@ function renderProjection6m(){
 
   // === Insights ===
   renderProjectionInsights(monthBalances, monthIn, monthOut, monthNet, labels);
+
+  // === Sales mix planner + break-even calculator ===
+  renderSalesMix();
+  renderBreakevenCalc();
 }
 
 function renderProjectionInsights(balances, ins, outs, nets, labels){
@@ -4423,7 +4806,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Inicialização da projeção
-if (!loadProjection()){
+if (loadProjection()){
+  // Garante que as linhas do mix reflitam o plano salvo (cenário inicial = Base)
+  syncSalesMixToProj();
+} else {
   initProjectionWithRecurring();
   // Aguarda o computeBalanceAt estar pronto antes de pegar o saldo final de junho
   projStartBalance = -368143.46469071595; // fallback hardcoded da planilha 10/06
