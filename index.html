@@ -657,7 +657,7 @@ function logout(){
   <div style="display:flex;align-items:center;gap:12px;">
     <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark" style="background:rgba(4,44,83,0.6);border:1px solid #185FA5;border-radius:8px;padding:6px 12px;font-size:15px;color:#85B7EB;cursor:pointer;line-height:1;">🌙</button>
     <div style="font-size:10px;color:#5DCAA5;background:rgba(93,202,165,0.1);border:1px solid rgba(93,202,165,0.3);padding:4px 10px;border-radius:99px;font-weight:600;letter-spacing:.04em;" title="Last update">
-      <i class="ti ti-refresh"></i> v34 · Jul 1, 2026
+      <i class="ti ti-refresh"></i> v35 · Jul 1, 2026
     </div>
     <div style="font-size:12px;color:#85B7EB;" id="todayLabel"></div>
     <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm" style="display:none;" onchange="importXlsx(event)">
@@ -2262,53 +2262,68 @@ function renderCatDistribution(){
 
 // ===== RENDER ALL =====
 function renderTopBalance(){
-  // Saldo inicial
-  document.getElementById('topInitial').textContent = fmt(initialBalance.val);
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-  // Saldo atual projetado (hoje)
+  // Start-of-month balance = balance at the last day of the PREVIOUS month
+  const firstDay = new Date(year, month, 1);
+  const prevDay = new Date(year, month, 0); // last day of previous month
+  const startBal = computeBalanceAt(dateKey(prevDay));
+  const startVal = (startBal !== null) ? startBal : initialBalance.val;
+
+  // End-of-month balance = balance at the last day of THIS month
+  const lastDay = new Date(year, month + 1, 0);
+  const endBal = computeBalanceAt(dateKey(lastDay));
+
+  // Month in/out (actual sums, unweighted)
+  let totalIn = 0, totalOut = 0;
+  entries.forEach(e => {
+    const d = parseDate(e.date);
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      if (e.type === 'in') totalIn += e.val; else totalOut += e.val;
+    }
+  });
+  const net = totalIn - totalOut;
+  const monthTxns = entries.filter(e=>{const d=parseDate(e.date);return d.getFullYear()===year&&d.getMonth()===month;}).length;
+
+  // Card 1: start-of-month balance
+  document.getElementById('topInitial').textContent = fmt(startVal);
+  document.querySelector('#topInitial').closest('.bal-card').querySelector('.bal-name').textContent =
+    `Opening balance · ${monthNames[month]} 1`;
+  document.querySelector('#topInitial').closest('.bal-card').querySelector('.bal-pct').textContent =
+    `Bradesco · start of ${monthNames[month]}`;
+
+  // Card 2: current projected balance (today, only if today is within/after this month makes sense)
   const todayKey = dateKey(today);
   const currentBal = computeBalanceAt(todayKey);
   const curEl = document.getElementById('topCurrent');
   if (currentBal !== null) {
     curEl.textContent = fmt(currentBal);
-    curEl.style.color = currentBal >= 0 ? '#fff' : '#F09595';
-    const diff = currentBal - initialBalance.val;
+    curEl.style.color = currentBal >= 0 ? '' : '#F09595';
+    const diff = currentBal - startVal;
     document.getElementById('topCurrentSub').innerHTML =
-      `<span style="color:${diff>=0?'#5DCAA5':'#F09595'};">${diff>=0?'+':''}${fmtCompact(diff)}</span> vs inicial`;
+      `<span style="color:${diff>=0?'#5DCAA5':'#F09595'};">${diff>=0?'+':''}${fmtCompact(diff)}</span> vs opening`;
   } else {
     curEl.textContent = '—';
     document.getElementById('topCurrentSub').textContent = 'No baseline';
   }
 
-  // Saldo final teorizado: aplica TODOS lançamentos (ponderados) de junho sobre o saldo inicial
-  // Considera apenas lançamentos de junho (mês atualmente visualizado)
-  const year = currentMonth.getFullYear();
-  const month = currentMonth.getMonth();
-  let totalIn = 0, totalOut = 0, totalNet = 0;
-  entries.forEach(e => {
-    const d = parseDate(e.date);
-    if (d.getFullYear() === year && d.getMonth() === month) {
-      const weight = e.cert === 'high' ? 1 : e.cert === 'med' ? 0.6 : 0.3;
-      if (e.type === 'in') totalIn += e.val;
-      else totalOut += e.val;
-      totalNet += (e.type === 'in' ? 1 : -1) * e.val * weight;
-    }
-  });
-
-  const finalBal = initialBalance.val + totalNet;
+  // Card 3: end-of-month balance (real running balance, not weighted)
   const finEl = document.getElementById('topFinal');
-  finEl.textContent = fmt(finalBal);
-  finEl.style.color = finalBal >= 0 ? '#fff' : '#F09595';
-  document.getElementById('topFinalSub').textContent =
-    `Includes ${entries.filter(e=>{const d=parseDate(e.date);return d.getFullYear()===year&&d.getMonth()===month;}).length} transactions this month`;
+  const finalVal = (endBal !== null) ? endBal : (startVal + net);
+  finEl.textContent = fmt(finalVal);
+  finEl.style.color = finalVal >= 0 ? '' : '#F09595';
+  document.querySelector('#topFinal').closest('.bal-card').querySelector('.bal-name').textContent =
+    `Projected close · ${monthNames[month]} ${lastDay.getDate()}`;
+  document.getElementById('topFinalSub').textContent = `${monthTxns} transactions this month`;
 
-  // Net do mês
+  // Card 4: month net
   const netEl = document.getElementById('topNet');
-  const net = totalIn - totalOut;
   netEl.textContent = fmt(net);
   netEl.style.color = net >= 0 ? '#5DCAA5' : '#F09595';
-  document.getElementById('topNetSub').textContent =
-    `${fmtCompact(totalIn)} entradas · ${fmtCompact(totalOut)} saídas`;
+  document.getElementById('topNetSub').innerHTML =
+    `<span style="color:#5DCAA5;">${fmtCompact(totalIn)}</span> in · <span style="color:#F09595;">${fmtCompact(totalOut)}</span> out`;
 }
 
 function renderAll(){
